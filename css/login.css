@@ -1,0 +1,250 @@
+/* Fundo Geral e Centralização */
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  background-color: #eef2f7;
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Container Principal com Gradiente Azul e Formas Suaves */
+.login-card-container {
+  width: 90%;
+  max-width: 960px;
+  min-height: 520px;
+  background: linear-gradient(135deg, #0052d4 0%, #4364f7 50%, #6fb1fc 100%);
+  border-radius: 24px;
+  display: flex;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 20px 40px rgba(0, 82, 212, 0.25);
+  padding: 40px;
+  box-sizing: border-border-box;
+}
+
+/* Círculos e Formas Orgânicas de Fundo (efeito da imagem) */
+.login-card-container::before {
+  content: '';
+  position: absolute;
+  width: 350px;
+  height: 350px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 50%;
+  bottom: -100px;
+  left: -80px;
+  pointer-events: none;
+}
+
+.login-card-container::after {
+  content: '';
+  position: absolute;
+  width: 450px;
+  height: 450px;
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 50%;
+  top: -150px;
+  right: 150px;
+  pointer-events: none;
+}
+
+/* Seção de Boas-Vindas (Esquerda) */
+.welcome-section {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  padding-right: 40px;
+  color: #ffffff;
+  z-index: 1;
+}
+
+.welcome-content h1 {
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  margin-bottom: 6px;
+}
+
+.welcome-content h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  letter-spacing: 1px;
+  margin-bottom: 20px;
+  color: #e0e7ff;
+}
+
+.welcome-content p {
+  font-size: 0.95rem;
+  line-height: 1.6;
+  color: #dbeafe;
+  max-width: 340px;
+}
+
+/* Cartão do Formulário (Direita - Branco Flutuante) */
+.form-section {
+  width: 380px;
+  background: #ffffff;
+  border-radius: 20px;
+  padding: 40px 35px;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  z-index: 2;
+}
+
+.form-header h2 {
+  font-size: 2rem;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+
+.form-header p {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-bottom: 28px;
+}
+
+/* Inputs Limpos */
+.input-group {
+  margin-bottom: 16px;
+  position: relative;
+}
+
+.input-group input {
+  width: 100%;
+  padding: 14px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9rem;
+  color: #1e293b;
+  outline: none;
+  box-sizing: border-box;
+  background-color: #f8fafc;
+  transition: border-color 0.2s, background 0.2s;
+}
+
+.input-group input:focus {
+  border-color: #2563eb;
+  background-color: #ffffff;
+}
+
+/* Grupo de Senha com o Botão "SHOW" */
+.password-group {
+  display: flex;
+  align-items: center;
+}
+
+.toggle-password {
+  position: absolute;
+  right: 14px;
+  background: none;
+  border: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #64748b;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+}
+
+.toggle-password:hover {
+  color: #2563eb;
+}
+
+/* Opções de Checkbox e Esqueci Senha */
+.form-options {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.8rem;
+  margin-bottom: 24px;
+}
+
+.remember-me {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #475569;
+  cursor: pointer;
+}
+
+.forgot-password {
+  color: #64748b;
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.forgot-password:hover {
+  color: #2563eb;
+  text-decoration: underline;
+}
+
+/* Botão Sign In Azul */
+.btn-signin {
+  width: 100%;
+  padding: 14px;
+  background: linear-gradient(90deg, #0052d4, #4364f7);
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 82, 212, 0.3);
+  transition: opacity 0.2s, transform 0.1s;
+}
+
+.btn-signin:hover {
+  opacity: 0.95;
+}
+
+.btn-signin:active {
+  transform: scale(0.99);
+}
+
+/* Rodapé "Don't have an account? Sign Up" */
+.form-footer {
+  text-align: center;
+  margin-top: 24px;
+  font-size: 0.85rem;
+  color: #64748b;
+}
+
+.link-signup {
+  color: #2563eb;
+  font-weight: 700;
+  text-decoration: none;
+  margin-left: 5px;
+}
+
+.link-signup:hover {
+  text-decoration: underline;
+}
+
+/* Responsividade */
+@media (max-width: 768px) {
+  .login-card-container {
+    flex-direction: column;
+    padding: 24px;
+    min-height: auto;
+  }
+
+  .welcome-section {
+    padding-right: 0;
+    margin-bottom: 24px;
+    text-align: center;
+  }
+
+  .welcome-content p {
+    max-width: 100%;
+  }
+
+  .form-section {
+    width: 100%;
+    box-sizing: border-box;
+    padding: 30px 20px;
+  }
+}
