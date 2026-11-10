@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cadastro - Usuário PCD | Urban Risk Platform</title>
+  <link rel="stylesheet" href="css/main.css">
+</head>
+
+<body>
+  <main class="container">
+    <h1>Cadastro de Usuário</h1>
+    <form id="form-pcd">
+
+      <!-- Dados Pessoais -->
+      <section>
+        <h2>1. Dados Pessoais</h2>
+        <div class="form-group">
+          <label for="pcd-name">Nome Completo</label>
+          <input type="text" id="pcd-name" required placeholder="Digite seu nome">
+        </div>
+
+        <div class="form-group">
+          <label for="pcd-disability">Tipo de Deficiência / Necessidade</label>
+          <select id="pcd-disability" required>
+            <option value="">Selecione...</option>
+            <option value="motora">Motora (Cadeirante / Mobilidade reduzida)</option>
+            <option value="visual">Visual (Cego / Baixa visão)</option>
+            <option value="auditiva">Auditiva</option>
+            <option value="outra">Outra</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="pcd-address">Endereço Residencial (Casa)</label>
+          <input type="text" id="pcd-address" required placeholder="Rua, Número, Bairro, Cidade">
+        </div>
+      </section>
+
+      <!-- Locais de Confiança -->
+      <section>
+        <h2>2. Locais Seguros de Apoio</h2>
+        <p style="font-size: 0.9rem; margin-bottom: 10px;">Cadastre locais conhecidos (casa de pais, amigos, farmácias, etc.).</p>
+        
+        <div class="form-group">
+          <input type="text" id="place-name" placeholder="Nome do local (ex: Casa da Mãe, Farmácia X)">
+          <input type="text" id="place-address" placeholder="Endereço do local" style="margin-top: 8px;">
+          <button type="button" id="btn-add-place" class="btn btn-secondary" style="margin-top: 8px;">+ Cadastrar Mais Locais</button>
+        </div>
+
+        <ul id="places-list" class="dynamic-list"></ul>
+      </section>
+
+      <!-- Vínculo com Contatos de Emergência -->
+      <section>
+        <h2>3. Contato de Emergência</h2>
+        <div class="form-group">
+          <label for="contact-phone">Telefone do Contato Cadastrado</label>
+          <input type="tel" id="contact-phone" required placeholder="(11) 99999-9999">
+        </div>
+      </section>
+
+      <button type="submit" class="btn">Finalizar Cadastro</button>
+    </form>
+  </main>
+
+  <script src="js/register-pcd.js"></script>
+</body>
+</html>
