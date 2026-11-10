@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Seleção de Perfil | Urban Risk Platform</title>
+  <link rel="stylesheet" href="css/main.css">
+  <style>
+    .role-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+      margin-top: 24px;
+    }
+
+    .role-card {
+      background: #ffffff;
+      border: 2px solid #cfd8dc;
+      border-radius: 10px;
+      padding: 24px;
+      text-align: center;
+      text-decoration: none;
+      color: inherit;
+      transition: transform 0.2s, border-color 0.2s, box-shadow 0.2s;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      cursor: pointer;
+    }
+
+    .role-card:hover, .role-card:focus {
+      border-color: #0d47a1;
+      transform: translateY(-4px);
+      box-shadow: 0 6px 16px rgba(13, 71, 161, 0.15);
+      outline: none;
+    }
+
+    .role-icon {
+      font-size: 2.5rem;
+      margin-bottom: 12px;
+    }
+
+    .role-card h2 {
+      font-size: 1.25rem;
+      color: #0d47a1;
+      margin-bottom: 8px;
+    }
+
+    .role-card p {
+      font-size: 0.9rem;
+      color: #546e7a;
+      line-height: 1.4;
+      margin-bottom: 16px;
+    }
+
+    .role-btn {
+      background-color: #e3f2fd;
+      color: #0d47a1;
+      padding: 10px;
+      border-radius: 6px;
+      font-weight: bold;
+    }
+
+    .role-card:hover .role-btn {
+      background-color: #0d47a1;
+      color: #ffffff;
+    }
+  </style>
+</head>
+<body>
+  <main class="container" style="max-width: 850px;">
+    <header style="text-align: center; margin-bottom: 20px;">
+      <h1>Urban Risk Intelligence Platform</h1>
+      <p style="color: #455a64; font-size: 1.1rem;">Selecione como deseja se cadastrar no sistema:</p>
+    </header>
+
+    <div class="role-grid">
+      <!-- Card PCD -->
+      <a href="register-pcd.html" class="role-card" aria-label="Cadastrar como Usuário com Deficiência">
+        <div>
+          <div class="role-icon">♿</div>
+          <h2>Usuário PCD</h2>
+          <p>Para pessoas com deficiência física, visual ou auditiva. Cadastre sua residência e locais seguros de apoio.</p>
+        </div>
+        <div class="role-btn">Criar Conta PCD</div>
+      </a>
+
+      <!-- Card Contato de Emergência -->
+      <a href="register-contact.html" class="role-card" aria-label="Cadastrar como Contato de Emergência da Rede de Apoio">
+        <div>
+          <div class="role-icon">👥</div>
+          <h2>Rede de Apoio</h2>
+          <p>Para familiares e amigos. Receba alertas e acompanhe a segurança do usuário vinculado durante tempestades.</p>
+        </div>
+        <div class="role-btn">Criar Conta de Apoio</div>
+      </a>
+
+      <!-- Card Administrador -->
+      <a href="register-admin.html" class="role-card" aria-label="Cadastrar como Agente da Defesa Civil ou Bombeiro">
+        <div>
+          <div class="role-icon">🛡️</div>
+          <h2>Agente / Órgão Público</h2>
+          <p>Para a Defesa Civil e Corpo de Bombeiros. Gerencie ocorrências, valide alertas e opere chamados prioritários.</p>
+        </div>
+        <div class="role-btn">Acesso Operacional</div>
+      </a>
+    </div>
+  </main>
+</body>
+</html>
