@@ -1,0 +1,135 @@
+/* Container de formulário */
+.form-section {
+  background: #ffffff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+}
+
+.form-section h2 {
+  font-size: 1.25rem;
+  color: #0d47a1;
+  border-bottom: 2px solid #e3f2fd;
+  padding-bottom: 8px;
+  margin-bottom: 16px;
+}
+
+/* Grupos de campos */
+.form-group {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+.form-group label {
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #2c3e50;
+  font-size: 0.95rem;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  width: 100%;
+  padding: 12px 14px;
+  border: 2px solid #cfd8dc;
+  border-radius: 6px;
+  font-size: 1rem;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #fafafa;
+}
+
+.form-group input:focus,
+.form-group select:focus {
+  border-color: #1565c0;
+  background-color: #fff;
+  box-shadow: 0 0 0 3px rgba(21, 101, 192, 0.2);
+  outline: none;
+}
+
+/* Sub-inputs pareados (ex: Nome do local e Endereço) */
+.input-row {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+@media (max-width: 600px) {
+  .input-row {
+    flex-direction: column;
+  }
+}
+
+/* Botão de adicionar locais (+ Cadastrar Mais) */
+.btn-add {
+  background-color: #37474f;
+  color: #ffffff;
+  border: none;
+  padding: 10px 16px;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.btn-add:hover {
+  background-color: #263238;
+}
+
+/* Lista dinâmica de locais cadastrados */
+.dynamic-list {
+  list-style: none;
+  padding: 0;
+  margin-top: 12px;
+}
+
+.dynamic-item {
+  background-color: #eef2f5;
+  border-left: 4px solid #1565c0;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.95rem;
+}
+
+.btn-remove {
+  background-color: #d32f2f;
+  color: #ffffff;
+  border: none;
+  padding: 4px 10px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.btn-remove:hover {
+  background-color: #b71c1c;
+}
+
+/* Botão principal de envio */
+.btn-submit {
+  width: 100%;
+  padding: 14px;
+  background-color: #0d47a1;
+  color: #ffffff;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  transition: background 0.2s, transform 0.1s;
+}
+
+.btn-submit:hover {
+  background-color: #1565c0;
+}
+
+.btn-submit:active {
+  transform: scale(0.99);
+}
