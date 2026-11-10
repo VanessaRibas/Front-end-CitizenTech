@@ -15,6 +15,25 @@
   margin-bottom: 16px;
 }
 
+/* Link/Botão de voltar */
+.btn-back {
+  display: inline-block;
+  margin-bottom: 20px;
+  color: #0d47a1;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 0.95rem;
+  transition: color 0.2s, transform 0.2s;
+}
+
+.btn-back:hover,
+.btn-back:focus {
+  color: #1565c0;
+  text-decoration: underline;
+  transform: translateX(-3px);
+  outline: none;
+}
+
 /* Grupos de campos */
 .form-group {
   display: flex;
@@ -49,7 +68,7 @@
   outline: none;
 }
 
-/* Sub-inputs pareados (ex: Nome do local e Endereço) */
+/* Sub-inputs pareados */
 .input-row {
   display: flex;
   gap: 10px;
@@ -60,22 +79,6 @@
   .input-row {
     flex-direction: column;
   }
-}
-
-/* Botão de adicionar locais (+ Cadastrar Mais) */
-.btn-add {
-  background-color: #37474f;
-  color: #ffffff;
-  border: none;
-  padding: 10px 16px;
-  border-radius: 6px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: background 0.2s;
-}
-
-.btn-add:hover {
-  background-color: #263238;
 }
 
 /* Lista dinâmica de locais cadastrados */

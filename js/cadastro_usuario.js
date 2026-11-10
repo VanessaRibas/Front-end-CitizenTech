@@ -5,7 +5,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const safePlaces = [];
 
-  // Lógica do botão "+ Cadastrar Mais Locais"
+  // Lógica de adicionar locais dinamicamente
   btnAddPlace.addEventListener('click', () => {
     const nameInput = document.getElementById('place-name');
     const addressInput = document.getElementById('place-address');
@@ -17,16 +17,15 @@ document.addEventListener('DOMContentLoaded', () => {
       const place = { id: Date.now(), name, address };
       safePlaces.push(place);
 
-      // Renderizar na lista da tela
       const li = document.createElement('li');
       li.className = 'dynamic-item';
+      li.setAttribute('data-id', place.id);
       li.innerHTML = `
         <span><strong>${name}</strong>: ${address}</span>
-        <button type="button" onclick="removePlace(${place.id})" style="background:red; color:white; border:none; padding:4px 8px; border-radius:4px; cursor:pointer;">X</button>
+        <button type="button" class="btn-remove" onclick="removePlace(${place.id})">X</button>
       `;
       placesList.appendChild(li);
 
-      // Limpar os campos
       nameInput.value = '';
       addressInput.value = '';
     } else {
@@ -34,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Salvar formulário
+  // Envios do formulário
   formPCD.addEventListener('submit', (e) => {
     e.preventDefault();
 
@@ -47,15 +46,13 @@ document.addEventListener('DOMContentLoaded', () => {
       safePlaces: safePlaces
     };
 
-    // Salva no localStorage para simular o banco de dados temporariamente
     localStorage.setItem('userPCDData', JSON.stringify(userData));
-    alert('Cadastro realizado com sucesso!');
-    window.location.href = 'dashboard-pcd.html'; // Próxima tela
+    alert('Cadastro de PCD realizado com sucesso!');
+    window.location.href = 'dashboard-pcd.html';
   });
 });
 
-// Função global para remover local cadastrado
 function removePlace(id) {
-  const item = document.querySelector(`[onclick="removePlace(${id})"]`).parentElement;
-  item.remove();
+  const item = document.querySelector(`li[data-id="${id}"]`);
+  if (item) item.remove();
 }

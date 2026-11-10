@@ -5,33 +5,40 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cadastro - Administrador | Urban Risk Platform</title>
   <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/forms.css">
 </head>
 <body>
   <main class="container">
+    <a href="index-cadastro.html" class="btn-back" aria-label="Voltar para a seleção de perfil">← Voltar para seleção de perfil</a>
+
     <h1>Cadastro Operacional (Defesa Civil / Bombeiros)</h1>
     <form id="form-admin">
-      <div class="form-group">
-        <label for="admin-name">Nome do Agente</label>
-        <input type="text" id="admin-name" required placeholder="Nome do responsável">
-      </div>
+      <section class="form-section">
+        <div class="form-group">
+          <label for="admin-name">Nome do Agente</label>
+          <input type="text" id="admin-name" required placeholder="Nome do responsável">
+        </div>
 
-      <div class="form-group">
-        <label for="admin-badge">Matrícula / Identificação Operacional</label>
-        <input type="text" id="admin-badge" required placeholder="Ex: DC-88492">
-      </div>
+        <div class="form-group">
+          <label for="admin-badge">Matrícula / Identificação Operacional</label>
+          <input type="text" id="admin-badge" required placeholder="Ex: DC-88492">
+        </div>
 
-      <div class="form-group">
-        <label for="admin-org">Órgão / Instituição</label>
-        <select id="admin-org" required>
-          <option value="">Selecione...</option>
-          <option value="defesa-civil">Defesa Civil</option>
-          <option value="bombeiros">Corpo de Bombeiros</option>
-          <option value="prefeitura">Gestão Urbana / Prefeitura</option>
-        </select>
-      </div>
+        <div class="form-group">
+          <label for="admin-org">Órgão / Instituição</label>
+          <select id="admin-org" required>
+            <option value="">Selecione...</option>
+            <option value="defesa-civil">Defesa Civil</option>
+            <option value="bombeiros">Corpo de Bombeiros</option>
+            <option value="prefeitura">Gestão Urbana / Prefeitura</option>
+          </select>
+        </div>
+      </section>
 
-      <button type="submit" class="btn">Criar Acesso Administrativo</button>
+      <button type="submit" class="btn-submit">Criar Acesso Administrativo</button>
     </form>
   </main>
+
+  <script src="js/register-admin.js"></script>
 </body>
 </html>

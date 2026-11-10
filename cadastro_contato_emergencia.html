@@ -5,28 +5,35 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Cadastro - Contato de Emergência | Urban Risk Platform</title>
   <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/forms.css">
 </head>
 <body>
   <main class="container">
+    <a href="index-cadastro.html" class="btn-back" aria-label="Voltar para a seleção de perfil">← Voltar para seleção de perfil</a>
+
     <h1>Cadastro - Rede de Apoio</h1>
     <form id="form-contact">
-      <div class="form-group">
-        <label for="contact-name">Seu Nome Completo</label>
-        <input type="text" id="contact-name" required placeholder="Digite seu nome">
-      </div>
+      <section class="form-section">
+        <div class="form-group">
+          <label for="contact-name">Seu Nome Completo</label>
+          <input type="text" id="contact-name" required placeholder="Digite seu nome">
+        </div>
 
-      <div class="form-group">
-        <label for="contact-phone-reg">Seu Telefone / WhatsApp</label>
-        <input type="tel" id="contact-phone-reg" required placeholder="(11) 99999-9999">
-      </div>
+        <div class="form-group">
+          <label for="contact-phone-reg">Seu Telefone / WhatsApp</label>
+          <input type="tel" id="contact-phone-reg" required placeholder="(11) 99999-9999">
+        </div>
 
-      <div class="form-group">
-        <label for="pcd-linked">Nome do Usuário PCD que você acompanha</label>
-        <input type="text" id="pcd-linked" required placeholder="Nome do familiar/amigo">
-      </div>
+        <div class="form-group">
+          <label for="pcd-linked">Nome do Usuário PCD acompanhado</label>
+          <input type="text" id="pcd-linked" required placeholder="Nome do familiar ou amigo">
+        </div>
+      </section>
 
-      <button type="submit" class="btn">Cadastrar como Rede de Apoio</button>
+      <button type="submit" class="btn-submit">Cadastrar como Rede de Apoio</button>
     </form>
   </main>
+
+  <script src="js/register-contact.js"></script>
 </body>
 </html>
