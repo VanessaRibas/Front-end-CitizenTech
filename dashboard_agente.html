@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel Operacional - Defesa Civil | Urban Risk Platform</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard-admin.css">
+</head>
+<body>
+  <!-- Barra Superior Operacional -->
+  <header class="admin-topbar">
+    <div class="brand-area">
+      <span class="shield-icon">🛡️</span>
+      <div>
+        <h1>Centro de Controle Operacional (CCO)</h1>
+        <span class="agent-info" id="agent-greeting">Agente Operacional • Defesa Civil / Bombeiros</span>
+      </div>
+    </div>
+
+    <div class="header-controls">
+      <div class="kpi-pill critical">
+        <span>🚨 Resgates SOS Ativos:</span>
+        <strong id="kpi-sos">2</strong>
+      </div>
+      <div class="kpi-pill warning">
+        <span>⏳ Aguardando Validação:</span>
+        <strong id="kpi-pending">2</strong>
+      </div>
+      <button type="button" id="btn-emit-alert" class="btn-official-alert">
+        📢 Emitir Alerta Oficial
+      </button>
+      <a href="login.html" class="btn-exit">Sair</a>
+    </div>
+  </header>
+
+  <!-- Grid Principal em 3 Colunas -->
+  <main class="admin-grid">
+
+    <!-- Coluna 1: Resgates Prioritários PCD (SOS) -->
+    <section class="admin-card">
+      <div class="card-header">
+        <h2>🚨 Chamados Críticos (SOS PCD)</h2>
+        <span class="tag-live">Prioridade Zero</span>
+      </div>
+      <p class="card-desc">Acionamentos emergenciais com ficha de acessibilidade:</p>
+
+      <div id="sos-queue" class="cards-list">
+        <!-- Chamado SOS 1 -->
+        <article class="sos-ticket urgent" id="sos-1">
+          <div class="ticket-top">
+            <span class="badge-sos">RISCO À VIDA • 193</span>
+            <span class="time">Há 2 min</span>
+          </div>
+          <h3>Lucas Almeida (29 anos)</h3>
+          <div class="pcd-specs">
+            <strong>♿ Necessidade:</strong> Cadeirante (Mobilidade Reduzida)<br>
+            <strong>📍 Localização:</strong> Av. Paulista, 1578 (Próximo ao Trianon)<br>
+            <strong>🌊 Situação:</strong> Ilhado por enxurrada / alagamento severo
+          </div>
+          <div class="ticket-actions">
+            <button type="button" class="btn-dispatch" onclick="dispatchRescue('sos-1', 'Lucas Almeida')">
+              🚒 Despachar Viatura Adaptada
+            </button>
+          </div>
+        </article>
+
+        <!-- Chamado SOS 2 -->
+        <article class="sos-ticket urgent" id="sos-2">
+          <div class="ticket-top">
+            <span class="badge-sos">ALTO RISCO • DEFESA CIVIL</span>
+            <span class="time">Há 6 min</span>
+          </div>
+          <h3>Beatriz Souza (34 anos)</h3>
+          <div class="pcd-specs">
+            <strong>👁️ Necessidade:</strong> Deficiência Visual Total<br>
+            <strong>📍 Localização:</strong> Rua Augusta, 900 - Consolação<br>
+            <strong>🧊 Situação:</strong> Sem resposta ao Check-in de Segurança (3 min)
+          </div>
+          <div class="ticket-actions">
+            <button type="button" class="btn-dispatch" onclick="dispatchRescue('sos-2', 'Beatriz Souza')">
+              🚓 Acionar Equipe de Apoio Local
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Coluna 2: Validação de Registros Comunitários (Ciclo de Vida) -->
+    <section class="admin-card">
+      <div class="card-header">
+        <h2>📋 Validação de Ocorrências</h2>
+        <span class="tag-state">Ciclo de Vida UML</span>
+      </div>
+      <p class="card-desc">Audite relatos enviados por moradores para elevar o nível de confiança:</p>
+
+      <div id="validation-queue" class="cards-list">
+        <!-- Ocorrência Pendente 1 -->
+        <article class="validation-item" id="val-1">
+          <div class="val-top">
+            <span class="state-badge validating">ESTADO: EM VALIDAÇÃO</span>
+            <span class="conf-badge">Confiança Atual: <strong>40%</strong></span>
+          </div>
+          <h3>Rampa de Acesso Obstruída por Galhos</h3>
+          <p><strong>Local:</strong> Esquina Rua Augusta x Oscar Freire</p>
+          <p class="origin-text"><strong>Origem:</strong> Registro Comunitário (1 morador)</p>
+
+          <div class="val-buttons">
+            <button type="button" class="btn-approve" onclick="validateEvent('val-1', true)">
+              ✅ Confirmar (Elevar para 100%)
+            </button>
+            <button type="button" class="btn-reject" onclick="validateEvent('val-1', false)">
+              ✕ Descartar Falso Alarme
+            </button>
+          </div>
+        </article>
+
+        <!-- Ocorrência Pendente 2 -->
+        <article class="validation-item" id="val-2">
+          <div class="val-top">
+            <span class="state-badge validating">ESTADO: EM VALIDAÇÃO</span>
+            <span class="conf-badge">Confiança Atual: <strong>75%</strong></span>
+          </div>
+          <h3>Chuva Forte com Granizo e Queda de Energia</h3>
+          <p><strong>Local:</strong> Região da Bela Vista / Brigadeiro</p>
+          <p class="origin-text"><strong>Origem:</strong> Comunidade (4 relatos em 200m)</p>
+
+          <div class="val-buttons">
+            <button type="button" class="btn-approve" onclick="validateEvent('val-2', true)">
+              ✅ Confirmar (Elevar para 100%)
+            </button>
+            <button type="button" class="btn-reject" onclick="validateEvent('val-2', false)">
+              ✕ Descartar Falso Alarme
+            </button>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <!-- Coluna 3: Gestão de Abrigos Públicos e Sensoriamento -->
+    <section class="admin-card">
+      <div class="card-header">
+        <h2>🏢 Gestão de Abrigos Acessíveis</h2>
+        <span class="tag-infra">Infraestrutura</span>
+      </div>
+      <p class="card-desc">Controle a disponibilidade e acessibilidade dos pontos de apoio:</p>
+
+      <div class="shelters-list">
+        <div class="shelter-item">
+          <div class="shelter-info">
+            <strong>Estação Consolação (Metrô)</strong>
+            <small>Elevador: Operacional • Capacidade: 45/100</small>
+          </div>
+          <select class="status-select open" onchange="changeShelterStatus(this)">
+            <option value="open" selected>🟢 Aberto</option>
+            <option value="full">🟡 Lotado</option>
+            <option value="closed">🔴 Inacessível</option>
+          </select>
+        </div>
+
+        <div class="shelter-item">
+          <div class="shelter-info">
+            <strong>E.E. Rodrigues Alves (Av. Paulista)</strong>
+            <small>Rampa de Acesso: OK • Capacidade: 80/80</small>
+          </div>
+          <select class="status-select full" onchange="changeShelterStatus(this)">
+            <option value="open">🟢 Aberto</option>
+            <option value="full" selected>🟡 Lotado</option>
+            <option value="closed">🔴 Inacessível</option>
+          </select>
+        </div>
+
+        <div class="shelter-item">
+          <div class="shelter-info">
+            <strong>UBS Jardim Paulista</strong>
+            <small>Banheiro Adaptado: OK • Capacidade: 12/40</small>
+          </div>
+          <select class="status-select open" onchange="changeShelterStatus(this)">
+            <option value="open" selected>🟢 Aberto</option>
+            <option value="full">🟡 Lotado</option>
+            <option value="closed">🔴 Inacessível</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- Status dos Sensores IoT -->
+      <div class="iot-box">
+        <h3>📡 Telemetria de Sensores IoT</h3>
+        <ul>
+          <li><span>Sensor #402 (Av. Paulista):</span> <strong class="text-danger">42cm Água (Crítico)</strong></li>
+          <li><span>Sensor #118 (Vale do Anhangabaú):</span> <strong class="text-warning">18cm Água (Atenção)</strong></li>
+          <li><span>Estação INMET Centro:</span> <strong class="text-success">Online (Atualizado 10s)</strong></li>
+        </ul>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Modal: Emitir Alerta Oficial -->
+  <div id="modal-official-alert" class="modal hidden" role="dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>📢 Emitir Alerta Oficial (Confiança 100%)</h2>
+        <button type="button" class="close-modal" onclick="closeAdminModal()">✕</button>
+      </div>
+      <form id="form-official-alert">
+        <div class="form-group">
+          <label for="alert-risk-level">Nível de Risco (Regra RN01)</label>
+          <select id="alert-risk-level" required>
+            <option value="CRÍTICO (Vermelho)">🔴 Nível 4 - Crítico (Risco Iminente à Vida)</option>
+            <option value="ALTO (Laranja)">🟠 Nível 3 - Alto (Alagamento / Granizo / Raios)</option>
+            <option value="MÉDIO (Amarelo)">🟡 Nível 2 - Médio (Atenção em Vias)</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="alert-region">Região / Bairro Afetado</label>
+          <input type="text" id="alert-region" required placeholder="Ex: Região Central / Av. Paulista">
+        </div>
+        <div class="form-group">
+          <label for="alert-instruction">Instrução de Evacuação Acessível</label>
+          <input type="text" id="alert-instruction" required placeholder="Ex: Evite vias baixas e dirija-se à Estação Consolação">
+        </div>
+        <button type="submit" class="btn-submit-alert">Disparar Alerta para Todos os Usuários</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/dashboard-admin.js"></script>
+</body>
+</html>
