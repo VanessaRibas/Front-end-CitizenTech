@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Painel de Monitoramento | Urban Risk Platform</title>
+  <link rel="stylesheet" href="css/main.css">
+  <link rel="stylesheet" href="css/dashboard_usuario.css">
+</head>
+<body>
+  <!-- Barra Superior (Header) -->
+  <header class="topbar">
+    <div class="topbar-brand">
+      <span class="logo-icon">🛡️</span>
+      <div>
+        <h1>Urban Risk Platform</h1>
+        <span class="user-badge" id="user-greeting">Carregando perfil...</span>
+      </div>
+    </div>
+
+    <div class="topbar-actions">
+      <button type="button" id="btn-contrast" class="btn-tool" aria-label="Alternar Alto Contraste">
+        👁️ Alto Contraste
+      </button>
+      <button type="button" id="btn-notifications" class="btn-tool badge-container" aria-label="Abrir Central de Notificações">
+        🔔 Notificações <span class="badge" id="notif-count">3</span>
+      </button>
+      <button type="button" id="btn-sos" class="btn-sos" aria-label="Acionar Socorro de Emergência SOS">
+        🚨 SOS EMERGÊNCIA
+      </button>
+      <a href="login.html" class="btn-logout">Sair</a>
+    </div>
+  </header>
+
+  <!-- Layout Principal em Grid -->
+  <main class="dashboard-grid">
+    
+    <!-- Coluna Esquerda: 4 Tipos de Rotas & Ações Rápidas -->
+    <aside class="sidebar-panel">
+      <section class="panel-card">
+        <h2>🧭 Rotas de Evacuação Acessíveis</h2>
+        <p class="subtitle">Selecione seu destino seguro conforme o contexto:</p>
+
+        <div class="route-buttons">
+          <button type="button" class="route-btn active" data-route="casa">
+            <span class="route-icon">🏠</span>
+            <div class="route-info">
+              <strong>1. Retorno à Residência</strong>
+              <small id="home-address-display">Calculando rota acessível...</small>
+            </div>
+          </button>
+
+          <button type="button" class="route-btn" data-route="abrigo">
+            <span class="route-icon">🏢</span>
+            <div class="route-info">
+              <strong>2. Abrigo Público Mais Próximo</strong>
+              <small>Metrô / Escola Adaptada (450m)</small>
+            </div>
+          </button>
+
+          <button type="button" class="route-btn" data-route="rede">
+            <span class="route-icon">👥</span>
+            <div class="route-info">
+              <strong>3. Rede Pessoal de Apoio</strong>
+              <small id="safe-place-display">Locais cadastrados por você</small>
+            </div>
+          </button>
+
+          <button type="button" class="route-btn" data-route="desvio">
+            <span class="route-icon">🗺️</span>
+            <div class="route-info">
+              <strong>4. Desvio Proativo de Risco</strong>
+              <small>Contornar alagamentos no trajeto</small>
+            </div>
+          </button>
+        </div>
+      </section>
+
+      <!-- Registro Comunitário de Ocorrência -->
+      <section class="panel-card report-card">
+        <h2>📢 Colaboração Comunitária</h2>
+        <p class="subtitle">Viu um alagamento, raio ou bloqueio de rampa?</p>
+        <button type="button" id="btn-open-report" class="btn-report">
+          + Reportar Ocorrência na Via
+        </button>
+      </section>
+    </aside>
+
+    <!-- Coluna Central: Mapa Interativo Simulado -->
+    <section class="map-panel">
+      <div class="map-header">
+        <div>
+          <h2>Mapa de Risco e Acessibilidade em Tempo Real</h2>
+          <span class="live-indicator">● Atualizado há 12s (Tempo real)</span>
+        </div>
+        <div class="route-status-pill" id="active-route-label">
+          Rota Ativa: <strong>Retorno à Residência (Sem degraus)</strong>
+        </div>
+      </div>
+
+      <!-- Área Visual do Mapa Simulado -->
+      <div class="simulated-map" id="map-canvas">
+        <div class="map-grid-lines"></div>
+
+        <!-- Marcador Usuário PCD -->
+        <div class="map-pin user-pin" style="top: 55%; left: 30%;">
+          <span>♿ Você</span>
+        </div>
+
+        <!-- Marcador Alerta Crítico (Alagamento) -->
+        <div class="map-pin risk-pin critical" style="top: 35%; left: 50%;" onclick="showAlertDetails('alagamento')">
+          <span>🌊 Alagamento Severo</span>
+          <small>Confiança: 98%</small>
+        </div>
+
+        <!-- Marcador Alerta Médio (Granizo) -->
+        <div class="map-pin risk-pin warning" style="top: 70%; left: 65%;" onclick="showAlertDetails('granizo')">
+          <span>🧊 Risco de Granizo</span>
+          <small>Confiança: 75%</small>
+        </div>
+
+        <!-- Marcador Abrigo Seguro -->
+        <div class="map-pin shelter-pin" style="top: 25%; left: 75%;">
+          <span>🏢 Abrigo Acessível</span>
+          <small>Rampa + Elevador</small>
+        </div>
+
+        <!-- Linha de Rota Acessível Simulada -->
+        <svg class="route-overlay" viewBox="0 0 100 100" preserveAspectRatio="none">
+          <path id="route-path" d="M 30 55 Q 20 35, 15 20" stroke="#0284c7" stroke-width="1.5" stroke-dasharray="3,2" fill="none" />
+        </svg>
+
+        <!-- Legenda do Mapa -->
+        <div class="map-legend">
+          <span><i class="dot red"></i> Risco Crítico</span>
+          <span><i class="dot orange"></i> Risco Médio</span>
+          <span><i class="dot green"></i> Abrigo Acessível</span>
+          <span><i class="dot blue"></i> Rota Segura</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Coluna Direita: Lista de Alertas + Origem e Nível de Confiança -->
+    <aside class="alerts-panel">
+      <div class="panel-card">
+        <h2>⚠️ Alertas Ativos na Região</h2>
+        <p class="subtitle">Dados auditados com origem e índice de confiança:</p>
+
+        <div id="alerts-list" class="alerts-container">
+          <!-- Alerta 1: Fonte Oficial -->
+          <article class="alert-item critical">
+            <div class="alert-top">
+              <span class="risk-tag critical">RISCO CRÍTICO</span>
+              <span class="distance-tag">300m de você</span>
+            </div>
+            <h3>Alagamento Intransitável - Av. Paulista</h3>
+            <p>Lâmina d'água acima de 40cm. Rota inacessível para cadeirantes.</p>
+            
+            <div class="trust-box">
+              <div><strong>Origem:</strong> Sensor IoT #402 / Defesa Civil</div>
+              <div class="trust-meter">
+                <span>Confiança: <strong>98%</strong></span>
+                <div class="bar"><div class="fill high" style="width: 98%;"></div></div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Alerta 2: Fonte Comunitária Validada -->
+          <article class="alert-item warning">
+            <div class="alert-top">
+              <span class="risk-tag warning">RISCO ALTO</span>
+              <span class="distance-tag">850m de você</span>
+            </div>
+            <h3>Chuva Forte com Granizo e Raios</h3>
+            <p>Busque abrigo coberto imediatamente.</p>
+            
+            <div class="trust-box">
+              <div><strong>Origem:</strong> Comunidade (4 relatos confirmados)</div>
+              <div class="trust-meter">
+                <span>Confiança: <strong>75%</strong></span>
+                <div class="bar"><div class="fill medium" style="width: 75%;"></div></div>
+              </div>
+            </div>
+          </article>
+
+          <!-- Alerta 3: Fonte Comunitária Inicial -->
+          <article class="alert-item info">
+            <div class="alert-top">
+              <span class="risk-tag info">ATENÇÃO</span>
+              <span class="distance-tag">1.2km de você</span>
+            </div>
+            <h3>Rampa de Acesso Obstruída por Galhos</h3>
+            <p>Esquina da Rua Augusta com Rua Oscar Freire.</p>
+            
+            <div class="trust-box">
+              <div><strong>Origem:</strong> Registro Comunitário (1 morador)</div>
+              <div class="trust-meter">
+                <span>Confiança: <strong>40%</strong> (Em validação)</span>
+                <div class="bar"><div class="fill low" style="width: 40%;"></div></div>
+              </div>
+            </div>
+          </article>
+        </div>
+      </div>
+    </aside>
+  </main>
+
+  <!-- Modal 1: Registro Comunitário de Ocorrência -->
+  <div id="modal-report" class="modal hidden" role="dialog" aria-labelledby="modal-report-title">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 id="modal-report-title">📢 Reportar Ocorrência Comunitária</h2>
+        <button type="button" class="close-modal" onclick="closeModals()">✕</button>
+      </div>
+      <form id="form-community-report">
+        <div class="form-group">
+          <label for="report-type">Tipo de Risco</label>
+          <select id="report-type" required>
+            <option value="Alagamento na Via">🌊 Alagamento na Via</option>
+            <option value="Chuva de Granizo / Raios">🧊 Chuva de Granizo / Raios</option>
+            <option value="Obstrução de Acessibilidade">♿ Rampa / Calçada Obstruída</option>
+            <option value="Queda de Energia / Árvore">⚡ Queda de Energia / Árvore</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label for="report-location">Localização / Referência</label>
+          <input type="text" id="report-location" required placeholder="Ex: Av. Brigadeiro Luís Antônio, 1200">
+        </div>
+        <div class="form-group">
+          <label for="report-desc">Detalhes (Opcional)</label>
+          <input type="text" id="report-desc" placeholder="Ex: Água subindo rápido próximo ao ponto de ônibus">
+        </div>
+        <p class="lgpd-note">🔒 Seu relato será publicado com confiança inicial de 40% e sua identidade será protegida (LGPD).</p>
+        <button type="submit" class="btn-submit">Enviar Alerta Comunitário</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal 2: Central de Notificações -->
+  <div id="modal-notifications" class="modal hidden" role="dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2>🔔 Central de Notificações</h2>
+        <button type="button" class="close-modal" onclick="closeModals()">✕</button>
+      </div>
+      <ul class="notif-list">
+        <li class="notif-item urgent">
+          <strong>[ALERTA CRÍTICO]</strong> Alagamento detectado a 300m. Rota recalculada automaticamente para evitar a Av. Paulista.
+          <small>Agora mesmo • Defesa Civil</small>
+        </li>
+        <li class="notif-item">
+          <strong>[REDE DE APOIO]</strong> Seu contato de emergência foi notificado sobre a chuva forte na sua região.
+          <small>Há 5 minutos • Sistema Automático</small>
+        </li>
+        <li class="notif-item">
+          <strong>[ABRIGO DISPONÍVEL]</strong> Estação Consolação (Elevador operacional) confirmada como ponto seguro.
+          <small>Há 12 minutos • Metrô SP</small>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Modal 3: SOS / Acionamento Gradativo de Emergência -->
+  <div id="modal-sos" class="modal hidden" role="dialog">
+    <div class="modal-content sos-modal">
+      <div class="modal-header">
+        <h2>🚨 ACIONAMENTO DE SOCORRO (SOS)</h2>
+        <button type="button" class="close-modal" onclick="closeModals()">✕</button>
+      </div>
+      <p>Detectamos risco crítico na sua área. Escolha o nível de acionamento imediato:</p>
+      
+      <div class="sos-actions">
+        <button type="button" class="btn-sos-level1" onclick="triggerSOS('REDE')">
+          👥 Avisar Minha Rede Pessoal (Risco Moderado)
+          <small>Envia SMS com sua localização em tempo real</small>
+        </button>
+
+        <button type="button" class="btn-sos-level3" onclick="triggerSOS('BOMBEIROS')">
+          🚒 Acionar Defesa Civil e Bombeiros 193 (Risco à Vida)
+          <small>Envia GPS exato + sua Ficha de Acessibilidade PCD</small>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/dashboard_usuario.js"></script>
+</body>
+</html>
