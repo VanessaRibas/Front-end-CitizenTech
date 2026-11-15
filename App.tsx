@@ -54,15 +54,15 @@ export default function App() {
   return (
     <View style={styles.container}>
       <StatusBar
-        backgroundColor="#102B46"
+        backgroundColor="#0B0B0E"
         barStyle="light-content"
       />
 
-      {/* BARRA DE STATUS DE CONEXÃO (Requisito da Apresentação) */}
+      {/* BARRA DE STATUS DE CONEXÃO */}
       <View
         style={[
           styles.connectionBar,
-          { backgroundColor: conectado ? "#168C70" : "#D9534F" },
+          { backgroundColor: conectado ? "#00FF66" : "#FF0055" },
         ]}
       >
         <Text style={styles.connectionText}>
@@ -121,7 +121,7 @@ export default function App() {
               <View style={styles.locationInputs}>
                 <Text style={styles.locationLabel}>ORIGEM</Text>
                 <Text style={styles.locationValue}>
-                  Minha localização
+                  Minha localização atual
                 </Text>
 
                 <View style={styles.inputDivider} />
@@ -130,8 +130,8 @@ export default function App() {
                 <TextInput
                   value={destino}
                   onChangeText={setDestino}
-                  placeholder="Digite seu destino"
-                  placeholderTextColor="#91A0AE"
+                  placeholder="Digite seu destino (ex: Av. Paulista)"
+                  placeholderTextColor="#666677"
                   style={styles.destinationInput}
                 />
               </View>
@@ -142,13 +142,13 @@ export default function App() {
               onPress={buscarRota}
             >
               <Text style={styles.searchButtonText}>
-                Encontrar rota  →
+                Calcular Rota Adaptada  →
               </Text>
             </TouchableOpacity>
 
             {rotaAtualizada && (
               <Text style={styles.searchFeedback}>
-                ✓ Destino informado! Rota demonstrativa disponível abaixo.
+                ✓ Rota calculada com base no seu perfil ativo!
               </Text>
             )}
           </View>
@@ -163,79 +163,103 @@ export default function App() {
 
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
-              <Text style={styles.summaryNumber}>{eventos.length < 10 ? `0${eventos.length}` : eventos.length}</Text>
+              <Text style={styles.summaryNumber}>
+                {eventos.length < 10 ? `0${eventos.length}` : eventos.length}
+              </Text>
               <Text style={styles.summaryLabel}>Eventos</Text>
             </View>
 
             <View style={styles.summaryCard}>
-              <Text style={[styles.summaryNumber, { color: "#D9534F" }]}>
-                {eventos.filter(e => e.prioridade === "ALTA").length < 10 ? `0${eventos.filter(e => e.prioridade === "ALTA").length}` : eventos.filter(e => e.prioridade === "ALTA").length}
+              <Text style={[styles.summaryNumber, { color: "#FF0055" }]}>
+                {eventos.filter(e => e.prioridade === "ALTA").length < 10
+                  ? `0${eventos.filter(e => e.prioridade === "ALTA").length}`
+                  : eventos.filter(e => e.prioridade === "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Alerta alto</Text>
             </View>
 
             <View style={styles.summaryCard}>
-              <Text style={[styles.summaryNumber, { color: "#168C70" }]}>
-                {eventos.filter(e => e.prioridade !== "ALTA").length < 10 ? `0${eventos.filter(e => e.prioridade !== "ALTA").length}` : eventos.filter(e => e.prioridade !== "ALTA").length}
+              <Text style={[styles.summaryNumber, { color: "#00FF66" }]}>
+                {eventos.filter(e => e.prioridade !== "ALTA").length < 10
+                  ? `0${eventos.filter(e => e.prioridade !== "ALTA").length}`
+                  : eventos.filter(e => e.prioridade !== "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Outros riscos</Text>
             </View>
           </View>
 
-          {/* MAPA */}
+          {/* MAPA INTELIGENTE BASEADO NO PERFIL */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Mapa de riscos</Text>
-            <Text style={styles.seeMore}>São Paulo</Text>
+            <Text style={styles.sectionTitle}>Mapa de Rota Dinâmico</Text>
+            <View style={styles.profileBadgeTag}>
+              <Text style={styles.profileBadgeTagText}>
+                {perfil === "CADEIRANTE" ? "♿ Modo Cadeirante" : "🦯 Modo Def. Visual"}
+              </Text>
+            </View>
           </View>
 
           <View style={styles.mapContainer}>
             <View style={styles.map}>
+              {/* Ruas e Blocos do Mapa */}
               <View style={[styles.mapBlock, { top: 15, left: 15 }]} />
               <View style={[styles.mapBlock, { top: 15, right: 15 }]} />
               <View style={[styles.mapBlock, { bottom: 15, left: 15 }]} />
               <View style={[styles.mapBlock, { bottom: 15, right: 15 }]} />
-              <View style={[styles.mapBlock, { top: 115, left: 110 }]} />
 
               <View style={[styles.mapStreet, styles.streetA]} />
               <View style={[styles.mapStreet, styles.streetB]} />
               <View style={[styles.mapStreet, styles.streetC]} />
-              <View style={[styles.mapStreet, styles.streetD]} />
 
-              <View style={styles.routeOne} />
-              <View style={styles.routeTwo} />
+              {/* ROTA DINÂMICA: Muda de cor e trajeto conforme o perfil salvo no estado */}
+              {perfil === "CADEIRANTE" ? (
+                <>
+                  <View style={styles.routeCadeirantePart1} />
+                  <View style={styles.routeCadeirantePart2} />
+                </>
+              ) : (
+                <>
+                  <View style={styles.routeVisualPart1} />
+                  <View style={styles.routeVisualPart2} />
+                </>
+              )}
 
+              {/* Ponto de Partida (A) */}
               <View style={styles.mapStart}>
                 <Text style={styles.mapPointText}>A</Text>
               </View>
 
+              {/* Ponto de Chegada (B) */}
               <View style={styles.mapEnd}>
                 <Text style={styles.mapPointText}>B</Text>
               </View>
 
-              <View style={styles.mapRisk}>
-                <Text style={{ fontSize: 18 }}>⚠</Text>
+              {/* Alerta de Risco no Mapa */}
+              <View style={styles.mapRiskBadge}>
+                <Text style={{ fontSize: 14 }}>⚠️</Text>
               </View>
 
-              <View style={styles.mapRiskTwo}>
-                <Text style={{ fontSize: 17 }}>🌧</Text>
-              </View>
-
-              <View style={styles.mapLabel}>
-                <Text style={styles.mapLabelText}>
-                  Área de risco
+              <View style={styles.mapInfoLabel}>
+                <Text style={styles.mapInfoLabelText}>
+                  {perfil === "CADEIRANTE"
+                    ? "✓ Rota otimizada sem escadas/lombadas"
+                    : "✓ Rota com piso tátil e alertas sonoros"}
                 </Text>
               </View>
             </View>
 
             <View style={styles.mapFooter}>
               <View style={styles.legend}>
-                <View style={styles.legendGreen} />
-                <Text style={styles.legendText}>Rota sugerida</Text>
-              </View>
-
-              <View style={styles.legend}>
-                <View style={styles.legendRed} />
-                <Text style={styles.legendText}>Risco urbano</Text>
+                <View
+                  style={[
+                    styles.legendIndicator,
+                    { backgroundColor: perfil === "CADEIRANTE" ? "#00FF66" : "#00D4FF" },
+                  ]}
+                />
+                <Text style={styles.legendText}>
+                  {perfil === "CADEIRANTE"
+                    ? "Trajeto seguro para cadeiras de rodas"
+                    : "Trajeto assistido para deficiência visual"}
+                </Text>
               </View>
             </View>
           </View>
@@ -296,7 +320,7 @@ export default function App() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Eventos cadastrados</Text>
             {carregando ? (
-              <ActivityIndicator size="small" color="#1769AA" />
+              <ActivityIndicator size="small" color="#FF0055" />
             ) : (
               <Text style={styles.eventCount}>{eventos.length} registros</Text>
             )}
@@ -305,7 +329,7 @@ export default function App() {
           {eventos.map((evento) => (
             <View key={evento.id} style={styles.eventCard}>
               <View style={styles.eventIcon}>
-              
+                <Text style={{ fontSize: 23 }}>{evento.tipo || "⚠️"}</Text>
               </View>
 
               <View style={styles.eventContent}>
@@ -317,13 +341,13 @@ export default function App() {
                   <View
                     style={[
                       styles.eventPriority,
-                      { backgroundColor: evento.cor || "#FCE8E5" },
+                      { backgroundColor: evento.cor || "#2A121A" },
                     ]}
                   >
                     <Text
                       style={[
                         styles.eventPriorityText,
-                        { color: evento.corTexto || "#D9534F" },
+                        { color: evento.corTexto || "#FF0055" },
                       ]}
                     >
                       {evento.prioridade}
@@ -378,8 +402,8 @@ export default function App() {
             </Text>
 
             <Text style={styles.profileDescription}>
-              Escolha o perfil que será considerado na recomendação
-              das suas rotas.
+              Escolha o perfil abaixo. O aplicativo adaptará instantaneamente
+              o mapa e as rotas recomendadas para você.
             </Text>
 
             <TouchableOpacity
@@ -435,18 +459,7 @@ export default function App() {
               <View style={{ flex: 1 }}>
                 <Text style={styles.addressTitle}>Minha casa</Text>
                 <Text style={styles.addressSubtitle}>
-                  Endereço ainda não cadastrado
-                </Text>
-              </View>
-              <Text style={styles.addressArrow}>›</Text>
-            </View>
-
-            <View style={styles.addressCard}>
-              <Text style={styles.addressIcon}>📍</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.addressTitle}>Local frequente</Text>
-                <Text style={styles.addressSubtitle}>
-                  Adicione um local de preferência
+                  Endereço cadastrado
                 </Text>
               </View>
               <Text style={styles.addressArrow}>›</Text>
@@ -462,10 +475,9 @@ export default function App() {
               <Text style={styles.aboutTitle}>CitizenTech</Text>
               <Text style={styles.aboutText}>
                 Plataforma de monitoramento de riscos urbanos e
-                mobilidade acessível. Desenvolvida para ajudar
-                pessoas a encontrar caminhos mais seguros.
+                mobilidade acessível desenvolvida para a Global Solution.
               </Text>
-              <Text style={styles.version}>Versão 1.0 • Protótipo</Text>
+              <Text style={styles.version}>Versão 1.0 • Protótipo Integrado</Text>
             </View>
           </View>
 
@@ -528,7 +540,7 @@ export default function App() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#F3F7FB",
+    backgroundColor: "#0B0B0E",
   },
   connectionBar: {
     flexDirection: "row",
@@ -538,12 +550,12 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   connectionText: {
-    color: "#FFFFFF",
+    color: "#0B0B0E",
     fontSize: 10,
     fontWeight: "bold",
   },
   retryText: {
-    color: "#FFFFFF",
+    color: "#0B0B0E",
     fontSize: 10,
     textDecorationLine: "underline",
     fontWeight: "bold",
@@ -552,13 +564,15 @@ const styles = StyleSheet.create({
     paddingBottom: 20,
   },
   header: {
-    backgroundColor: "#102B46",
+    backgroundColor: "#141419",
     paddingHorizontal: 22,
     paddingTop: 20,
     paddingBottom: 22,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#22222E",
   },
   logo: {
     fontSize: 25,
@@ -567,7 +581,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
   headerSubtitle: {
-    color: "#B9D4E8",
+    color: "#888899",
     fontSize: 12,
     marginTop: 5,
   },
@@ -575,13 +589,15 @@ const styles = StyleSheet.create({
     width: 43,
     height: 43,
     borderRadius: 25,
-    backgroundColor: "#D9F2EA",
+    backgroundColor: "#2A121A",
+    borderWidth: 1,
+    borderColor: "#FF0055",
     alignItems: "center",
     justifyContent: "center",
   },
   avatarText: {
     fontSize: 19,
-    color: "#176B61",
+    color: "#FF0055",
     fontWeight: "bold",
   },
   welcome: {
@@ -592,27 +608,25 @@ const styles = StyleSheet.create({
   welcomeTitle: {
     fontSize: 23,
     fontWeight: "bold",
-    color: "#102B46",
+    color: "#FFFFFF",
   },
   welcomeSubtitle: {
     fontSize: 13,
-    color: "#728397",
+    color: "#888899",
     marginTop: 5,
   },
   searchCard: {
     marginHorizontal: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     padding: 17,
     borderRadius: 17,
-    elevation: 3,
-    shadowColor: "#102B46",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
+    borderWidth: 1,
+    borderColor: "#22222E",
   },
   cardTitle: {
     fontSize: 16,
     fontWeight: "bold",
-    color: "#102B46",
+    color: "#FFFFFF",
     marginBottom: 16,
   },
   locationRow: {
@@ -627,47 +641,47 @@ const styles = StyleSheet.create({
     width: 11,
     height: 11,
     borderRadius: 8,
-    backgroundColor: "#168C70",
+    backgroundColor: "#00FF66",
   },
   locationLine: {
     width: 2,
     height: 37,
-    backgroundColor: "#D1DBE5",
+    backgroundColor: "#333344",
   },
   destinationDot: {
     width: 11,
     height: 11,
     borderRadius: 2,
-    backgroundColor: "#3977C5",
+    backgroundColor: "#FF0055",
   },
   locationInputs: {
     flex: 1,
     marginLeft: 10,
   },
   locationLabel: {
-    color: "#94A2AF",
+    color: "#777788",
     fontSize: 9,
     fontWeight: "bold",
     letterSpacing: 1,
   },
   locationValue: {
     fontSize: 13,
-    color: "#314B63",
+    color: "#CCCCDD",
     marginTop: 4,
     marginBottom: 7,
   },
   inputDivider: {
     height: 1,
-    backgroundColor: "#EDF1F5",
+    backgroundColor: "#22222E",
     marginBottom: 7,
   },
   destinationInput: {
     fontSize: 13,
-    color: "#102B46",
+    color: "#FFFFFF",
     paddingVertical: 4,
   },
   searchButton: {
-    backgroundColor: "#1769AA",
+    backgroundColor: "#FF0055",
     borderRadius: 11,
     padding: 14,
     alignItems: "center",
@@ -679,7 +693,7 @@ const styles = StyleSheet.create({
     fontSize: 14,
   },
   searchFeedback: {
-    color: "#168C70",
+    color: "#00FF66",
     fontSize: 11,
     marginTop: 10,
   },
@@ -692,19 +706,32 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   sectionTitle: {
-    color: "#102B46",
+    color: "#FFFFFF",
     fontSize: 17,
     fontWeight: "bold",
   },
   liveLabel: {
-    color: "#168C70",
+    color: "#00FF66",
     fontSize: 9,
     fontWeight: "bold",
   },
   seeMore: {
-    color: "#1769AA",
+    color: "#FF0055",
     fontSize: 12,
     fontWeight: "600",
+  },
+  profileBadgeTag: {
+    backgroundColor: "#1C1C26",
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#333344",
+  },
+  profileBadgeTagText: {
+    color: "#00FF66",
+    fontSize: 10,
+    fontWeight: "bold",
   },
   summaryRow: {
     flexDirection: "row",
@@ -713,182 +740,192 @@ const styles = StyleSheet.create({
   },
   summaryCard: {
     flex: 1,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     paddingVertical: 15,
     borderRadius: 13,
     alignItems: "center",
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#22222E",
   },
   summaryNumber: {
-    color: "#1769AA",
+    color: "#FFFFFF",
     fontSize: 23,
     fontWeight: "bold",
   },
   summaryLabel: {
-    color: "#8190A0",
+    color: "#777788",
     fontSize: 10,
     marginTop: 5,
   },
   mapContainer: {
     marginHorizontal: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     borderRadius: 16,
     padding: 9,
-    elevation: 2,
+    borderWidth: 1,
+    borderColor: "#22222E",
   },
   map: {
     height: 220,
-    backgroundColor: "#E5EFE8",
+    backgroundColor: "#191922",
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
   },
   mapBlock: {
     position: "absolute",
-    width: 75,
-    height: 55,
-    backgroundColor: "#CFE0D2",
+    width: 80,
+    height: 60,
+    backgroundColor: "#22222E",
     borderRadius: 8,
   },
   mapStreet: {
     position: "absolute",
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#2E2E3E",
   },
   streetA: {
-    height: 15,
+    height: 18,
     width: "120%",
     top: 65,
     left: -15,
-    transform: [{ rotate: "24deg" }],
+    transform: [{ rotate: "22deg" }],
   },
   streetB: {
-    height: 15,
+    height: 18,
     width: "120%",
-    top: 145,
+    top: 140,
     left: -15,
-    transform: [{ rotate: "-18deg" }],
+    transform: [{ rotate: "-15deg" }],
   },
   streetC: {
-    width: 15,
+    width: 18,
     height: "120%",
-    left: "33%",
+    left: "40%",
     top: -15,
   },
-  streetD: {
-    width: 15,
-    height: "120%",
-    right: "27%",
-    top: -15,
-  },
-  routeOne: {
+  // Rota Cadeirante (Verde Neon - Caminho plano sem escadas)
+  routeCadeirantePart1: {
     position: "absolute",
-    height: 5,
-    width: 135,
-    backgroundColor: "#168C70",
-    top: 119,
-    left: 35,
-    transform: [{ rotate: "-25deg" }],
+    height: 6,
+    width: 140,
+    backgroundColor: "#00FF66",
+    top: 110,
+    left: 30,
+    transform: [{ rotate: "-20deg" }],
     borderRadius: 5,
   },
-  routeTwo: {
+  routeCadeirantePart2: {
     position: "absolute",
-    height: 5,
-    width: 90,
-    backgroundColor: "#168C70",
-    top: 85,
-    left: 145,
-    transform: [{ rotate: "30deg" }],
+    height: 6,
+    width: 100,
+    backgroundColor: "#00FF66",
+    top: 75,
+    left: 150,
+    transform: [{ rotate: "25deg" }],
+    borderRadius: 5,
+  },
+  // Rota Deficiente Visual (Ciano - Caminho com piso tátil e alerta sonoro)
+  routeVisualPart1: {
+    position: "absolute",
+    height: 6,
+    width: 130,
+    backgroundColor: "#00D4FF",
+    top: 145,
+    left: 40,
+    transform: [{ rotate: "12deg" }],
+    borderRadius: 5,
+  },
+  routeVisualPart2: {
+    position: "absolute",
+    height: 6,
+    width: 110,
+    backgroundColor: "#00D4FF",
+    top: 55,
+    left: 130,
+    transform: [{ rotate: "-22deg" }],
     borderRadius: 5,
   },
   mapStart: {
     position: "absolute",
-    left: 30,
-    bottom: 45,
-    width: 28,
-    height: 28,
-    borderRadius: 18,
-    backgroundColor: "#1769AA",
+    left: 25,
+    bottom: 40,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#FF0055",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   mapEnd: {
     position: "absolute",
-    right: 30,
-    top: 42,
-    width: 28,
-    height: 28,
-    borderRadius: 18,
-    backgroundColor: "#168C70",
+    right: 25,
+    top: 35,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: "#00FF66",
     justifyContent: "center",
     alignItems: "center",
+    borderWidth: 2,
+    borderColor: "#FFFFFF",
   },
   mapPointText: {
-    color: "#FFFFFF",
+    color: "#0B0B0E",
     fontWeight: "bold",
-    fontSize: 11,
+    fontSize: 12,
   },
-  mapRisk: {
+  mapRiskBadge: {
     position: "absolute",
-    right: 105,
-    bottom: 28,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 5,
+    right: 95,
+    bottom: 25,
+    backgroundColor: "#2A121A",
+    borderRadius: 15,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: "#FF0055",
   },
-  mapRiskTwo: {
+  mapInfoLabel: {
     position: "absolute",
-    right: 60,
-    bottom: 85,
-    backgroundColor: "#FFFFFF",
-    borderRadius: 20,
-    padding: 5,
+    left: 10,
+    top: 10,
+    backgroundColor: "rgba(11, 11, 14, 0.85)",
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#333344",
   },
-  mapLabel: {
-    position: "absolute",
-    right: 12,
-    bottom: 10,
-    backgroundColor: "#FFFFFF",
-    padding: 5,
-    borderRadius: 5,
-  },
-  mapLabelText: {
-    color: "#D9534F",
+  mapInfoLabelText: {
+    color: "#FFFFFF",
     fontSize: 9,
     fontWeight: "bold",
   },
   mapFooter: {
-    flexDirection: "row",
-    gap: 20,
     padding: 10,
   },
   legend: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6,
+    gap: 8,
   },
-  legendGreen: {
-    width: 9,
-    height: 9,
-    borderRadius: 8,
-    backgroundColor: "#168C70",
-  },
-  legendRed: {
-    width: 9,
-    height: 9,
-    borderRadius: 8,
-    backgroundColor: "#D9534F",
+  legendIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
   },
   legendText: {
-    fontSize: 10,
-    color: "#728397",
+    fontSize: 11,
+    color: "#888899",
   },
   alertCard: {
     marginHorizontal: 16,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     padding: 15,
     borderRadius: 15,
     borderWidth: 1,
-    borderColor: "#F3DDD6",
+    borderColor: "#FF005555",
   },
   alertTop: {
     flexDirection: "row",
@@ -898,34 +935,36 @@ const styles = StyleSheet.create({
   alertIconBox: {
     width: 45,
     height: 45,
-    backgroundColor: "#FFF0EB",
+    backgroundColor: "#2A121A",
     borderRadius: 12,
     alignItems: "center",
     justifyContent: "center",
   },
   alertTitle: {
-    color: "#102B46",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "bold",
   },
   alertAddress: {
-    color: "#8794A1",
+    color: "#888899",
     fontSize: 10,
     marginTop: 5,
   },
   priorityBadge: {
-    backgroundColor: "#FCE8E5",
+    backgroundColor: "#2A121A",
     paddingHorizontal: 9,
     paddingVertical: 6,
     borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "#FF0055",
   },
   priorityText: {
-    color: "#D9534F",
+    color: "#FF0055",
     fontSize: 9,
     fontWeight: "bold",
   },
   alertDescription: {
-    color: "#657789",
+    color: "#AAACC0",
     fontSize: 12,
     lineHeight: 19,
     marginTop: 14,
@@ -936,14 +975,14 @@ const styles = StyleSheet.create({
     marginTop: 13,
     paddingTop: 11,
     borderTopWidth: 1,
-    borderTopColor: "#EDF1F5",
+    borderTopColor: "#22222E",
   },
   alertInfoText: {
-    color: "#8493A0",
+    color: "#777788",
     fontSize: 10,
   },
   alertButton: {
-    backgroundColor: "#102B46",
+    backgroundColor: "#FF0055",
     borderRadius: 9,
     padding: 13,
     marginTop: 14,
@@ -955,24 +994,25 @@ const styles = StyleSheet.create({
     fontSize: 12,
   },
   eventCount: {
-    color: "#8794A1",
+    color: "#888899",
     fontSize: 11,
   },
   eventCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     marginHorizontal: 16,
     marginBottom: 10,
     borderRadius: 13,
     padding: 13,
     flexDirection: "row",
     gap: 12,
-    elevation: 1,
+    borderWidth: 1,
+    borderColor: "#22222E",
   },
   eventIcon: {
     width: 43,
     height: 43,
     borderRadius: 11,
-    backgroundColor: "#F0F5FA",
+    backgroundColor: "#1C1C26",
     justifyContent: "center",
     alignItems: "center",
   },
@@ -986,7 +1026,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   eventTitle: {
-    color: "#102B46",
+    color: "#FFFFFF",
     fontSize: 13,
     fontWeight: "bold",
     flex: 1,
@@ -1001,26 +1041,28 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
   eventDescription: {
-    color: "#657789",
+    color: "#AAACC0",
     fontSize: 11,
     marginTop: 6,
   },
   eventAddress: {
-    color: "#8794A1",
+    color: "#888899",
     fontSize: 10,
     marginTop: 7,
   },
   eventTime: {
-    color: "#A0AAB5",
+    color: "#666677",
     fontSize: 9,
     marginTop: 5,
   },
   profileHeader: {
-    backgroundColor: "#102B46",
+    backgroundColor: "#141419",
     paddingHorizontal: 22,
     paddingTop: 24,
     paddingBottom: 28,
     alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "#22222E",
   },
   profileHeaderTitle: {
     color: "#FFFFFF",
@@ -1029,7 +1071,7 @@ const styles = StyleSheet.create({
     alignSelf: "flex-start",
   },
   profileHeaderSubtitle: {
-    color: "#B9D4E8",
+    color: "#888899",
     fontSize: 12,
     alignSelf: "flex-start",
     marginTop: 5,
@@ -1038,7 +1080,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 45,
-    backgroundColor: "#D9F2EA",
+    backgroundColor: "#2A121A",
+    borderWidth: 2,
+    borderColor: "#FF0055",
     alignItems: "center",
     justifyContent: "center",
     marginTop: 24,
@@ -1046,7 +1090,7 @@ const styles = StyleSheet.create({
   largeAvatarText: {
     fontSize: 32,
     fontWeight: "bold",
-    color: "#176B61",
+    color: "#FF0055",
   },
   profileName: {
     color: "#FFFFFF",
@@ -1055,7 +1099,7 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   profileEmail: {
-    color: "#B9D4E8",
+    color: "#888899",
     fontSize: 12,
     marginTop: 4,
   },
@@ -1064,14 +1108,14 @@ const styles = StyleSheet.create({
     marginTop: 24,
   },
   profileDescription: {
-    color: "#728397",
+    color: "#888899",
     fontSize: 12,
     lineHeight: 19,
     marginTop: 7,
     marginBottom: 13,
   },
   accessibilityCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     borderRadius: 13,
     padding: 14,
     marginBottom: 10,
@@ -1079,89 +1123,93 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 12,
     borderWidth: 1.5,
-    borderColor: "#E5ECF2",
+    borderColor: "#22222E",
   },
   accessibilitySelected: {
-    backgroundColor: "#EAF4FC",
-    borderColor: "#1769AA",
+    backgroundColor: "#1F141C",
+    borderColor: "#FF0055",
   },
   accessibilityEmoji: {
     fontSize: 28,
   },
   accessibilityTitle: {
-    color: "#102B46",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 13,
   },
   accessibilitySubtitle: {
-    color: "#728397",
+    color: "#888899",
     fontSize: 10,
     lineHeight: 15,
     marginTop: 4,
   },
   check: {
-    color: "#1769AA",
+    color: "#FF0055",
     fontSize: 20,
   },
   addressCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     borderRadius: 12,
     padding: 15,
     marginTop: 10,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
+    borderWidth: 1,
+    borderColor: "#22222E",
   },
   addressIcon: {
     fontSize: 23,
   },
   addressTitle: {
-    color: "#102B46",
+    color: "#FFFFFF",
     fontWeight: "bold",
     fontSize: 13,
   },
   addressSubtitle: {
-    color: "#8794A1",
+    color: "#888899",
     fontSize: 11,
     marginTop: 5,
   },
   addressArrow: {
     fontSize: 24,
-    color: "#1769AA",
+    color: "#FF0055",
   },
   aboutCard: {
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     borderRadius: 13,
     padding: 16,
+    borderWidth: 1,
+    borderColor: "#22222E",
   },
   aboutTitle: {
-    color: "#1769AA",
+    color: "#FF0055",
     fontSize: 15,
     fontWeight: "bold",
   },
   aboutText: {
-    color: "#657789",
+    color: "#AAACC0",
     fontSize: 12,
     lineHeight: 19,
     marginTop: 8,
   },
   version: {
-    color: "#A0AAB5",
+    color: "#666677",
     fontSize: 10,
     marginTop: 13,
   },
   footer: {
     textAlign: "center",
-    color: "#A0AAB5",
+    color: "#666677",
     fontSize: 10,
     marginTop: 25,
     marginBottom: 15,
   },
   bottomBar: {
     height: 65,
-    backgroundColor: "#FFFFFF",
+    backgroundColor: "#141419",
     borderTopWidth: 1,
-    borderTopColor: "#E8EDF2",
+    borderTopColor: "#22222E",
     flexDirection: "row",
     justifyContent: "space-around",
     alignItems: "center",
@@ -1172,16 +1220,16 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   tabIcon: {
-    color: "#A0AAB5",
+    color: "#666677",
     fontSize: 22,
   },
   tabText: {
-    color: "#A0AAB5",
+    color: "#666677",
     fontSize: 10,
     marginTop: 3,
   },
   activeTab: {
-    color: "#1769AA",
+    color: "#FF0055",
     fontWeight: "bold",
   },
 });
