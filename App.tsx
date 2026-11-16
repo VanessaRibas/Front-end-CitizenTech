@@ -10,7 +10,8 @@ import {
   ActivityIndicator,
 } from "react-native";
 
-import { EventoRisco } from "./src/interfaces/evento";
+import { Alerta } from "./src/interfaces/alerta";
+import { listarAlertas } from "./src/services/alertaService";
 import { listarEventos } from "./src/services/eventoService";
 
 type Perfil = "VISUAL" | "CADEIRANTE";
@@ -22,19 +23,28 @@ export default function App() {
   const [destino, setDestino] = useState("");
   const [rotaAtualizada, setRotaAtualizada] = useState(false);
 
-  // Estados de Integração e Resiliência (Backend Offline)
-  const [eventos, setEventos] = useState<EventoRisco[]>([]);
+  // Estados separados para Alertas e Eventos do Backend
+  const [alertas, setAlertas] = useState<Alerta[]>([]);
+  const [eventos, setEventos] = useState<any[]>([]);
+  
   const [carregando, setCarregando] = useState<boolean>(true);
   const [conectado, setConectado] = useState<boolean>(true);
 
-  // Função para buscar dados da API do Spring Boot
-  async function carregarEventosDoBackend() {
+  // Função para buscar dados de ambos os serviços em paralelo
+  async function carregarDadosDoBackend() {
     try {
       setCarregando(true);
-      const dados = await listarEventos();
-      setEventos(dados);
+      
+      const [dadosAlertas, dadosEventos] = await Promise.all([
+        listarAlertas(),
+        listarEventos(),
+      ]);
+
+      setAlertas(dadosAlertas || []);
+      setEventos(dadosEventos || []);
       setConectado(true);
     } catch (error) {
+      console.error("Erro ao buscar dados do backend:", error);
       setConectado(false);
     } finally {
       setCarregando(false);
@@ -42,7 +52,7 @@ export default function App() {
   }
 
   useEffect(() => {
-    carregarEventosDoBackend();
+    carregarDadosDoBackend();
   }, []);
 
   function buscarRota() {
@@ -51,12 +61,12 @@ export default function App() {
     }
   }
 
+  // Pega o primeiro alerta para o card principal de destaque
+  const alertaPrincipal = alertas.length > 0 ? alertas[0] : null;
+
   return (
     <View style={styles.container}>
-      <StatusBar
-        backgroundColor="#0B0B0E"
-        barStyle="light-content"
-      />
+      <StatusBar backgroundColor="#0B0B0E" barStyle="light-content" />
 
       {/* BARRA DE STATUS DE CONEXÃO */}
       <View
@@ -70,7 +80,7 @@ export default function App() {
             ? "● Backend Spring Boot: Conectado"
             : "⚠️ Servidor Offline — Modo de Contingência Ativo"}
         </Text>
-        <TouchableOpacity onPress={carregarEventosDoBackend}>
+        <TouchableOpacity onPress={carregarDadosDoBackend}>
           <Text style={styles.retryText}>Reconectar</Text>
         </TouchableOpacity>
       </View>
@@ -99,9 +109,7 @@ export default function App() {
 
           {/* BOAS-VINDAS */}
           <View style={styles.welcome}>
-            <Text style={styles.welcomeTitle}>
-              Olá, Vanessa! 👋
-            </Text>
+            <Text style={styles.welcomeTitle}>Olá, Vanessa! 👋</Text>
             <Text style={styles.welcomeSubtitle}>
               Vamos encontrar um caminho mais seguro?
             </Text>
@@ -120,9 +128,7 @@ export default function App() {
 
               <View style={styles.locationInputs}>
                 <Text style={styles.locationLabel}>ORIGEM</Text>
-                <Text style={styles.locationValue}>
-                  Minha localização atual
-                </Text>
+                <Text style={styles.locationValue}>Minha localização atual</Text>
 
                 <View style={styles.inputDivider} />
 
@@ -137,10 +143,7 @@ export default function App() {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={buscarRota}
-            >
+            <TouchableOpacity style={styles.searchButton} onPress={buscarRota}>
               <Text style={styles.searchButtonText}>
                 Calcular Rota Adaptada  →
               </Text>
@@ -153,7 +156,7 @@ export default function App() {
             )}
           </View>
 
-          {/* RESUMO */}
+          {/* RESUMO GERAL */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Visão geral</Text>
             <Text style={styles.liveLabel}>
@@ -164,31 +167,20 @@ export default function App() {
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryNumber}>
+                {alertas.length < 10 ? `0${alertas.length}` : alertas.length}
+              </Text>
+              <Text style={styles.summaryLabel}>Alertas</Text>
+            </View>
+
+            <View style={styles.summaryCard}>
+              <Text style={[styles.summaryNumber, { color: "#00D4FF" }]}>
                 {eventos.length < 10 ? `0${eventos.length}` : eventos.length}
               </Text>
               <Text style={styles.summaryLabel}>Eventos</Text>
             </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={[styles.summaryNumber, { color: "#FF0055" }]}>
-                {eventos.filter(e => e.prioridade === "ALTA").length < 10
-                  ? `0${eventos.filter(e => e.prioridade === "ALTA").length}`
-                  : eventos.filter(e => e.prioridade === "ALTA").length}
-              </Text>
-              <Text style={styles.summaryLabel}>Alerta alto</Text>
-            </View>
-
-            <View style={styles.summaryCard}>
-              <Text style={[styles.summaryNumber, { color: "#00FF66" }]}>
-                {eventos.filter(e => e.prioridade !== "ALTA").length < 10
-                  ? `0${eventos.filter(e => e.prioridade !== "ALTA").length}`
-                  : eventos.filter(e => e.prioridade !== "ALTA").length}
-              </Text>
-              <Text style={styles.summaryLabel}>Outros riscos</Text>
-            </View>
           </View>
 
-          {/* MAPA INTELIGENTE BASEADO NO PERFIL */}
+          {/* MAPA DINÂMICO */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Mapa de Rota Dinâmico</Text>
             <View style={styles.profileBadgeTag}>
@@ -200,7 +192,6 @@ export default function App() {
 
           <View style={styles.mapContainer}>
             <View style={styles.map}>
-              {/* Ruas e Blocos do Mapa */}
               <View style={[styles.mapBlock, { top: 15, left: 15 }]} />
               <View style={[styles.mapBlock, { top: 15, right: 15 }]} />
               <View style={[styles.mapBlock, { bottom: 15, left: 15 }]} />
@@ -210,7 +201,6 @@ export default function App() {
               <View style={[styles.mapStreet, styles.streetB]} />
               <View style={[styles.mapStreet, styles.streetC]} />
 
-              {/* ROTA DINÂMICA: Muda de cor e trajeto conforme o perfil salvo no estado */}
               {perfil === "CADEIRANTE" ? (
                 <>
                   <View style={styles.routeCadeirantePart1} />
@@ -223,17 +213,14 @@ export default function App() {
                 </>
               )}
 
-              {/* Ponto de Partida (A) */}
               <View style={styles.mapStart}>
                 <Text style={styles.mapPointText}>A</Text>
               </View>
 
-              {/* Ponto de Chegada (B) */}
               <View style={styles.mapEnd}>
                 <Text style={styles.mapPointText}>B</Text>
               </View>
 
-              {/* Alerta de Risco no Mapa */}
               <View style={styles.mapRiskBadge}>
                 <Text style={{ fontSize: 14 }}>⚠️</Text>
               </View>
@@ -273,106 +260,111 @@ export default function App() {
           <View style={styles.alertCard}>
             <View style={styles.alertTop}>
               <View style={styles.alertIconBox}>
-                <Text style={{ fontSize: 24 }}>🌧️</Text>
+                <Text style={{ fontSize: 24 }}>
+                  {alertaPrincipal ? alertaPrincipal.tipo || "⚠️" : "🌧️"}
+                </Text>
               </View>
 
               <View style={{ flex: 1 }}>
                 <Text style={styles.alertTitle}>
-                  Alagamento identificado
+                  {alertaPrincipal ? alertaPrincipal.titulo : "Nenhum alerta ativo"}
                 </Text>
                 <Text style={styles.alertAddress}>
-                  Avenida Paulista, São Paulo
+                  {alertaPrincipal ? alertaPrincipal.endereco : "Localização não informada"}
                 </Text>
               </View>
 
               <View style={styles.priorityBadge}>
-                <Text style={styles.priorityText}>ALTO</Text>
+                <Text style={styles.priorityText}>
+                  {alertaPrincipal ? alertaPrincipal.nivelPrioridade : "INFO"}
+                </Text>
               </View>
             </View>
 
             <Text style={styles.alertDescription}>
-              Foi identificado um ponto de alagamento que pode
-              comprometer a passagem de pedestres e cadeirantes.
+              {alertaPrincipal
+                ? alertaPrincipal.descricao
+                : "Sistema operando normalmente sem ocorrências críticas registradas no momento."}
             </Text>
 
             <View style={styles.alertInfo}>
               <Text style={styles.alertInfoText}>
-                Origem: Sensor simulado
+                Origem: {alertaPrincipal ? alertaPrincipal.origemDado : "Sistema"}
               </Text>
               <Text style={styles.alertInfoText}>
-                Confiança: Alta
+                Confiança: {alertaPrincipal ? alertaPrincipal.nivelConfianca : "Alta"}
               </Text>
             </View>
-
-            <TouchableOpacity
-              style={styles.alertButton}
-              onPress={() => setRotaAtualizada(true)}
-            >
-              <Text style={styles.alertButtonText}>
-                {rotaAtualizada
-                  ? "Rota alternativa sugerida ✓"
-                  : "Ver rota alternativa →"}
-              </Text>
-            </TouchableOpacity>
           </View>
 
-          {/* EVENTOS DINÂMICOS DA API */}
+          {/* LISTAGEM DE ALERTAS CADASTRADOS */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Eventos cadastrados</Text>
+            <Text style={styles.sectionTitle}>Alertas cadastrados</Text>
             {carregando ? (
               <ActivityIndicator size="small" color="#FF0055" />
             ) : (
-              <Text style={styles.eventCount}>{eventos.length} registros</Text>
+              <Text style={styles.eventCount}>{alertas.length} registros</Text>
             )}
           </View>
 
-          {eventos.map((evento) => (
-            <View key={evento.id} style={styles.eventCard}>
-              <View style={styles.eventIcon}>
-                <Text style={{ fontSize: 23 }}>{evento.tipo || "⚠️"}</Text>
-              </View>
-
-              <View style={styles.eventContent}>
-                <View style={styles.eventTitleRow}>
-                  <Text style={styles.eventTitle}>
-                    {evento.titulo}
-                  </Text>
-
-                  <View
-                    style={[
-                      styles.eventPriority,
-                      { backgroundColor: evento.cor || "#2A121A" },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.eventPriorityText,
-                        { color: evento.corTexto || "#FF0055" },
-                      ]}
-                    >
-                      {evento.prioridade}
-                    </Text>
-                  </View>
+          {alertas.length === 0 ? (
+            <Text style={styles.emptyText}>Nenhum alerta cadastrado no banco.</Text>
+          ) : (
+            alertas.map((alerta) => (
+              <View key={`alerta-${alerta.id}`} style={styles.eventCard}>
+                <View style={styles.eventIcon}>
+                  <Text style={{ fontSize: 23 }}>{alerta.tipo || "🚨"}</Text>
                 </View>
 
-                <Text style={styles.eventDescription}>
-                  {evento.descricao}
-                </Text>
+                <View style={styles.eventContent}>
+                  <View style={styles.eventTitleRow}>
+                    <Text style={styles.eventTitle}>{alerta.titulo}</Text>
 
-                <Text style={styles.eventAddress}>
-                  📍 {evento.endereco}
-                </Text>
+                    <View style={styles.eventPriority}>
+                      <Text style={styles.eventPriorityText}>
+                        {alerta.nivelPrioridade}
+                      </Text>
+                    </View>
+                  </View>
 
-                <Text style={styles.eventTime}>
-                  Origem: {evento.origem} • Confiança: {evento.confianca}
-                </Text>
+                  <Text style={styles.eventDescription}>{alerta.descricao}</Text>
+                  <Text style={styles.eventAddress}>📍 {alerta.endereco}</Text>
+                  <Text style={styles.eventTime}>
+                    Origem: {alerta.origemDado} • Confiança: {alerta.nivelConfianca}
+                  </Text>
+                </View>
               </View>
-            </View>
-          ))}
+            ))
+          )}
 
-          <Text style={styles.footer}>
-            CitizenTech • Mobilidade para todos
-          </Text>
+          {/* LISTAGEM DE EVENTOS CADASTRADOS */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Eventos cadastrados</Text>
+            <Text style={styles.eventCount}>{eventos.length} registros</Text>
+          </View>
+
+          {eventos.length === 0 ? (
+            <Text style={styles.emptyText}>Nenhum evento cadastrado no banco.</Text>
+          ) : (
+            eventos.map((evento, index) => (
+              <View key={`evento-${evento.id || index}`} style={[styles.eventCard, { borderColor: "#00D4FF44" }]}>
+                <View style={[styles.eventIcon, { backgroundColor: "#0C202A" }]}>
+                  <Text style={{ fontSize: 23 }}>{evento.tipo || "📅"}</Text>
+                </View>
+
+                <View style={styles.eventContent}>
+                  <View style={styles.eventTitleRow}>
+                    <Text style={styles.eventTitle}>{evento.titulo || evento.nome}</Text>
+                  </View>
+
+                  <Text style={styles.eventDescription}>{evento.descricao}</Text>
+                  <Text style={styles.eventAddress}>📍 {evento.endereco || "Local não informado"}</Text>
+                </View>
+              </View>
+            ))
+          )}
+
+          <Text style={styles.footer}>CitizenTech • Mobilidade para todos</Text>
         </ScrollView>
       ) : (
         /* TELA DE PERFIL */
@@ -391,20 +383,11 @@ export default function App() {
             </View>
 
             <Text style={styles.profileName}>Vanessa</Text>
-            <Text style={styles.profileEmail}>
-              Usuária CitizenTech
-            </Text>
+            <Text style={styles.profileEmail}>Usuária CitizenTech</Text>
           </View>
 
           <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>
-              Perfil de acessibilidade
-            </Text>
-
-            <Text style={styles.profileDescription}>
-              Escolha o perfil abaixo. O aplicativo adaptará instantaneamente
-              o mapa e as rotas recomendadas para você.
-            </Text>
+            <Text style={styles.sectionTitle}>Perfil de acessibilidade</Text>
 
             <TouchableOpacity
               style={[
@@ -415,16 +398,12 @@ export default function App() {
             >
               <Text style={styles.accessibilityEmoji}>🦯</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.accessibilityTitle}>
-                  Deficiência visual
-                </Text>
+                <Text style={styles.accessibilityTitle}>Deficiência visual</Text>
                 <Text style={styles.accessibilitySubtitle}>
                   Orientação por áudio e travessias sinalizadas.
                 </Text>
               </View>
-              <Text style={styles.check}>
-                {perfil === "VISUAL" ? "●" : "○"}
-              </Text>
+              <Text style={styles.check}>{perfil === "VISUAL" ? "●" : "○"}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
@@ -436,54 +415,16 @@ export default function App() {
             >
               <Text style={styles.accessibilityEmoji}>♿</Text>
               <View style={{ flex: 1 }}>
-                <Text style={styles.accessibilityTitle}>
-                  Mobilidade reduzida
-                </Text>
+                <Text style={styles.accessibilityTitle}>Mobilidade reduzida</Text>
                 <Text style={styles.accessibilitySubtitle}>
                   Rampas, calçadas acessíveis e sem escadas.
                 </Text>
               </View>
-              <Text style={styles.check}>
-                {perfil === "CADEIRANTE" ? "●" : "○"}
-              </Text>
+              <Text style={styles.check}>{perfil === "CADEIRANTE" ? "●" : "○"}</Text>
             </TouchableOpacity>
           </View>
 
-          <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>
-              Meus endereços
-            </Text>
-
-            <View style={styles.addressCard}>
-              <Text style={styles.addressIcon}>🏠</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.addressTitle}>Minha casa</Text>
-                <Text style={styles.addressSubtitle}>
-                  Endereço cadastrado
-                </Text>
-              </View>
-              <Text style={styles.addressArrow}>›</Text>
-            </View>
-          </View>
-
-          <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>
-              Sobre o aplicativo
-            </Text>
-
-            <View style={styles.aboutCard}>
-              <Text style={styles.aboutTitle}>CitizenTech</Text>
-              <Text style={styles.aboutText}>
-                Plataforma de monitoramento de riscos urbanos e
-                mobilidade acessível desenvolvida para a Global Solution.
-              </Text>
-              <Text style={styles.version}>Versão 1.0 • Protótipo Integrado</Text>
-            </View>
-          </View>
-
-          <Text style={styles.footer}>
-            CitizenTech • Mobilidade para todos
-          </Text>
+          <Text style={styles.footer}>CitizenTech • Mobilidade para todos</Text>
         </ScrollView>
       )}
 
@@ -493,20 +434,10 @@ export default function App() {
           style={styles.tabButton}
           onPress={() => setTela("INICIO")}
         >
-          <Text
-            style={[
-              styles.tabIcon,
-              tela === "INICIO" && styles.activeTab,
-            ]}
-          >
+          <Text style={[styles.tabIcon, tela === "INICIO" && styles.activeTab]}>
             ⌂
           </Text>
-          <Text
-            style={[
-              styles.tabText,
-              tela === "INICIO" && styles.activeTab,
-            ]}
-          >
+          <Text style={[styles.tabText, tela === "INICIO" && styles.activeTab]}>
             Início
           </Text>
         </TouchableOpacity>
@@ -515,20 +446,10 @@ export default function App() {
           style={styles.tabButton}
           onPress={() => setTela("PERFIL")}
         >
-          <Text
-            style={[
-              styles.tabIcon,
-              tela === "PERFIL" && styles.activeTab,
-            ]}
-          >
+          <Text style={[styles.tabIcon, tela === "PERFIL" && styles.activeTab]}>
             ◉
           </Text>
-          <Text
-            style={[
-              styles.tabText,
-              tela === "PERFIL" && styles.activeTab,
-            ]}
-          >
+          <Text style={[styles.tabText, tela === "PERFIL" && styles.activeTab]}>
             Perfil
           </Text>
         </TouchableOpacity>
@@ -803,7 +724,6 @@ const styles = StyleSheet.create({
     left: "40%",
     top: -15,
   },
-  // Rota Cadeirante (Verde Neon - Caminho plano sem escadas)
   routeCadeirantePart1: {
     position: "absolute",
     height: 6,
@@ -824,7 +744,6 @@ const styles = StyleSheet.create({
     transform: [{ rotate: "25deg" }],
     borderRadius: 5,
   },
-  // Rota Deficiente Visual (Ciano - Caminho com piso tátil e alerta sonoro)
   routeVisualPart1: {
     position: "absolute",
     height: 6,
@@ -981,17 +900,11 @@ const styles = StyleSheet.create({
     color: "#777788",
     fontSize: 10,
   },
-  alertButton: {
-    backgroundColor: "#FF0055",
-    borderRadius: 9,
-    padding: 13,
-    marginTop: 14,
-    alignItems: "center",
-  },
-  alertButtonText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
+  emptyText: {
+    color: "#666677",
     fontSize: 12,
+    textAlign: "center",
+    marginVertical: 10,
   },
   eventCount: {
     color: "#888899",
@@ -1035,10 +948,14 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 4,
     borderRadius: 5,
+    backgroundColor: "#2A121A",
+    borderWidth: 1,
+    borderColor: "#FF0055",
   },
   eventPriorityText: {
     fontSize: 8,
     fontWeight: "bold",
+    color: "#FF0055",
   },
   eventDescription: {
     color: "#AAACC0",
@@ -1107,13 +1024,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     marginTop: 24,
   },
-  profileDescription: {
-    color: "#888899",
-    fontSize: 12,
-    lineHeight: 19,
-    marginTop: 7,
-    marginBottom: 13,
-  },
   accessibilityCard: {
     backgroundColor: "#141419",
     borderRadius: 13,
@@ -1146,57 +1056,6 @@ const styles = StyleSheet.create({
   check: {
     color: "#FF0055",
     fontSize: 20,
-  },
-  addressCard: {
-    backgroundColor: "#141419",
-    borderRadius: 12,
-    padding: 15,
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#22222E",
-  },
-  addressIcon: {
-    fontSize: 23,
-  },
-  addressTitle: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 13,
-  },
-  addressSubtitle: {
-    color: "#888899",
-    fontSize: 11,
-    marginTop: 5,
-  },
-  addressArrow: {
-    fontSize: 24,
-    color: "#FF0055",
-  },
-  aboutCard: {
-    backgroundColor: "#141419",
-    borderRadius: 13,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: "#22222E",
-  },
-  aboutTitle: {
-    color: "#FF0055",
-    fontSize: 15,
-    fontWeight: "bold",
-  },
-  aboutText: {
-    color: "#AAACC0",
-    fontSize: 12,
-    lineHeight: 19,
-    marginTop: 8,
-  },
-  version: {
-    color: "#666677",
-    fontSize: 10,
-    marginTop: 13,
   },
   footer: {
     textAlign: "center",
