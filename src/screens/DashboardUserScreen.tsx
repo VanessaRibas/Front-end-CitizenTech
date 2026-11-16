@@ -14,6 +14,7 @@ import Svg, { Path, Circle, Line, Rect, G } from "react-native-svg";
 
 import { EventoRisco } from "../interfaces/evento";
 import { listarEventos } from "../services/eventoService";
+import { listarAlertas } from "../services/alertaService"; // Importando serviço de alertas
 
 type PerfilPCD = "VISUAL" | "CADEIRANTE";
 type AbaUsuario = "INICIO" | "PERFIL";
@@ -118,6 +119,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
   // Estados de Integração Backend Spring Boot
   const [eventos, setEventos] = useState<EventoRisco[]>([]);
+  const [alertas, setAlertas] = useState<any[]>([]); // Estado para os Alertas
   const [carregando, setCarregando] = useState<boolean>(true);
   const [conectado, setConectado] = useState<boolean>(true);
 
@@ -127,11 +129,15 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   const [localReport, setLocalReport] = useState("");
   const [descReport, setDescReport] = useState("");
 
-  async function carregarEventosDoBackend() {
+  async function carregarDadosDoBackend() {
     try {
       setCarregando(true);
-      const dados = await listarEventos();
-      setEventos(dados);
+      const [dadosEventos, dadosAlertas] = await Promise.all([
+        listarEventos(),
+        listarAlertas(),
+      ]);
+      setEventos(dadosEventos || []);
+      setAlertas(dadosAlertas || []);
       setConectado(true);
     } catch (error) {
       setConectado(false);
@@ -141,7 +147,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   }
 
   useEffect(() => {
-    carregarEventosDoBackend();
+    carregarDadosDoBackend();
   }, []);
 
   const nomeUsuario = userData?.nome || "Vanessa";
@@ -195,7 +201,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             ? "● Backend Spring Boot: Conectado"
             : "⚠️ Servidor Offline — Modo de Contingência Ativo"}
         </Text>
-        <TouchableOpacity onPress={carregarEventosDoBackend}>
+        <TouchableOpacity onPress={carregarDadosDoBackend}>
           <Text style={styles.retryText}>Reconectar</Text>
         </TouchableOpacity>
       </View>
@@ -451,23 +457,23 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryNumber}>
-                {eventos.length < 10 ? `0${eventos.length}` : eventos.length}
+                {eventos.length + alertas.length < 10 ? `0${eventos.length + alertas.length}` : eventos.length + alertas.length}
               </Text>
-              <Text style={styles.summaryLabel}>Eventos</Text>
+              <Text style={styles.summaryLabel}>Total Registros</Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={[styles.summaryNumber, { color: "#FF0055" }]}>
-                {eventos.filter((e) => e.prioridade === "ALTA").length < 10
-                  ? `0${eventos.filter((e) => e.prioridade === "ALTA").length}`
-                  : eventos.filter((e) => e.prioridade === "ALTA").length}
+                {eventos.filter((e) => e.prioridade === "ALTA").length + alertas.filter((a) => a.nivelPrioridade === "ALTA").length < 10
+                  ? `0${eventos.filter((e) => e.prioridade === "ALTA").length + alertas.filter((a) => a.nivelPrioridade === "ALTA").length}`
+                  : eventos.filter((e) => e.prioridade === "ALTA").length + alertas.filter((a) => a.nivelPrioridade === "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Alerta alto</Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={[styles.summaryNumber, { color: "#00FF66" }]}>
-                {eventos.filter((e) => e.prioridade !== "ALTA").length < 10
-                  ? `0${eventos.filter((e) => e.prioridade !== "ALTA").length}`
-                  : eventos.filter((e) => e.prioridade !== "ALTA").length}
+                {eventos.filter((e) => e.prioridade !== "ALTA").length + alertas.filter((a) => a.nivelPrioridade !== "ALTA").length < 10
+                  ? `0${eventos.filter((e) => e.prioridade !== "ALTA").length + alertas.filter((a) => a.nivelPrioridade !== "ALTA").length}`
+                  : eventos.filter((e) => e.prioridade !== "ALTA").length + alertas.filter((a) => a.nivelPrioridade !== "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Outros riscos</Text>
             </View>
@@ -475,7 +481,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
           {/* EVENTOS DINÂMICOS DA API E COMUNIDADE */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Alertas e ocorrências</Text>
+            <Text style={styles.sectionTitle}>Eventos cadastrados</Text>
             {carregando ? (
               <ActivityIndicator size="small" color="#FF0055" />
             ) : (
@@ -484,7 +490,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           </View>
 
           {eventos.map((evento) => (
-            <View key={evento.id} style={styles.eventCard}>
+            <View key={`evento-${evento.id}`} style={styles.eventCard}>
               <View style={styles.eventIcon}>
                 <Text style={{ fontSize: 23 }}>{evento.tipo || "⚠️"}</Text>
               </View>
@@ -501,6 +507,35 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 <Text style={styles.eventAddress}>📍 {evento.endereco}</Text>
                 <Text style={styles.eventTime}>
                   Origem: {evento.origem} • Confiança: {evento.confianca}
+                </Text>
+              </View>
+            </View>
+          ))}
+
+          {/* ALERTAS CADASTRADOS */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Alertas cadastrados</Text>
+            <Text style={styles.eventCount}>{alertas.length} registros</Text>
+          </View>
+
+          {alertas.map((alerta, index) => (
+            <View key={`alerta-${alerta.id || index}`} style={[styles.eventCard, { borderColor: "#00D4FF44" }]}>
+              <View style={[styles.eventIcon, { backgroundColor: "#12242A" }]}>
+                <Text style={{ fontSize: 23 }}>{alerta.tipo || "🚨"}</Text>
+              </View>
+              <View style={styles.eventContent}>
+                <View style={styles.eventTitleRow}>
+                  <Text style={styles.eventTitle}>{alerta.titulo || alerta.nome || "Alerta sem título"}</Text>
+                  <View style={[styles.eventPriority, { backgroundColor: "#12242A", borderColor: "#00D4FF" }]}>
+                    <Text style={[styles.eventPriorityText, { color: "#00D4FF" }]}>
+                      {alerta.nivelPrioridade || alerta.prioridade || "ALTO"}
+                    </Text>
+                  </View>
+                </View>
+                <Text style={styles.eventDescription}>{alerta.descricao || "Sem descrição informada."}</Text>
+                <Text style={styles.eventAddress}>📍 {alerta.endereco || "Local não informado"}</Text>
+                <Text style={styles.eventTime}>
+                  Origem: {alerta.origemDado || alerta.origem || "Sistema"} • Confiança: {alerta.nivelConfianca || alerta.confianca || "Alta"}
                 </Text>
               </View>
             </View>
@@ -874,7 +909,7 @@ const styles = StyleSheet.create({
   eventContent: { flex: 1 },
   eventTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 5 },
   eventTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold", flex: 1 },
-  eventPriority: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 5 },
+  eventPriority: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 5, borderWidth: 1 },
   eventPriorityText: { fontSize: 8, fontWeight: "bold" },
   eventDescription: { color: "#AAACC0", fontSize: 11, marginTop: 6 },
   eventAddress: { color: "#888899", fontSize: 10, marginTop: 7 },

@@ -1,17 +1,12 @@
 import api from "./api";
-import { EventoRisco } from "../interfaces/evento";
+// Se tiver uma interface para Evento, importe-a aqui. Usaremos 'any' caso queira flexibilidade.
 
-export async function listarEventos(): Promise<EventoRisco[]> {
-  const response = await api.get<EventoRisco[]>("/eventos");
+export async function listarEventos(): Promise<any[]> {
+  const response = await api.get<any[]>("/eventos"); // Rota do seu EventoController no Spring Boot
   return response.data;
 }
 
-export async function buscarEventoPorId(id: number): Promise<EventoRisco> {
-  const response = await api.get<EventoRisco>(`/eventos/${id}`);
-  return response.data;
-}
-
-export async function criarEvento(evento: Omit<EventoRisco, "id">): Promise<EventoRisco> {
-  const response = await api.post<EventoRisco>("/eventos", evento);
+export async function criarEvento(evento: any): Promise<any> {
+  const response = await api.post<any>("/eventos", evento);
   return response.data;
 }
