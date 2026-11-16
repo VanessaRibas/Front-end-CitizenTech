@@ -8,6 +8,7 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
+  Modal,
 } from "react-native";
 import Svg, { Path, Circle, Line, Rect, G } from "react-native-svg";
 
@@ -23,7 +24,6 @@ interface DashboardUserProps {
   onLogout: () => void;
 }
 
-// Configuração visual e geográfica distinta para cada uma das 4 rotas
 const CONFIG_MAPAS: Record<
   TipoRota,
   {
@@ -121,6 +121,12 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   const [carregando, setCarregando] = useState<boolean>(true);
   const [conectado, setConectado] = useState<boolean>(true);
 
+  // Estados do Modal de Reportar Risco Comunitário
+  const [modalReportVisible, setModalReportVisible] = useState(false);
+  const [tipoRiscoReport, setTipoRiscoReport] = useState("🌊 Alagamento na Via");
+  const [localReport, setLocalReport] = useState("");
+  const [descReport, setDescReport] = useState("");
+
   async function carregarEventosDoBackend() {
     try {
       setCarregando(true);
@@ -144,6 +150,35 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   function selecionarTipoRota(novaRota: TipoRota) {
     setTipoRota(novaRota);
     setRotaAtualizada(false);
+  }
+
+  function enviarReporteComunitario() {
+    if (!localReport.trim()) {
+      Alert.alert("Campo obrigatório", "Informe a rua ou ponto de referência do risco.");
+      return;
+    }
+
+    const novoEvento: any = {
+      id: Date.now(),
+      tipo: tipoRiscoReport.split(" ")[0],
+      titulo: `${tipoRiscoReport.substring(2).trim()}`,
+      descricao: descReport.trim() || "Ocorrência reportada pela comunidade local.",
+      endereco: localReport.trim(),
+      prioridade: "MÉDIO",
+      cor: "#12242A",
+      corTexto: "#00D4FF",
+      origem: `Comunidade (${nomeUsuario})`,
+      confianca: "40% (Em validação)",
+    };
+
+    setEventos([novoEvento, ...eventos]);
+    setLocalReport("");
+    setDescReport("");
+    setModalReportVisible(false);
+    Alert.alert(
+      "📢 Ocorrência Registrada!",
+      "Seu relato foi publicado no mapa com nível de confiança inicial de 40% e enviado para auditoria da Defesa Civil."
+    );
   }
 
   return (
@@ -174,7 +209,14 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
               <Text style={styles.headerSubtitle}>Mobilidade inteligente para todos</Text>
             </View>
 
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 10 }}>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <TouchableOpacity
+                style={styles.reportHeaderBtn}
+                onPress={() => setModalReportVisible(true)}
+              >
+                <Text style={styles.reportHeaderText}>+ Reportar</Text>
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.sosHeaderBtn}
                 onPress={() =>
@@ -269,7 +311,6 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           <View style={styles.mapContainer}>
             <View style={styles.map}>
               <Svg width="100%" height="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
-                {/* Fundo e Quarteirões */}
                 <Rect x="0" y="0" width="400" height="220" fill="#13131A" />
                 <Rect x="20" y="20" width="90" height="65" rx="8" fill="#1C1C26" />
                 <Rect x="140" y="20" width="110" height="65" rx="8" fill="#1C1C26" />
@@ -278,17 +319,14 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 <Rect x="140" y="115" width="110" height="85" rx="8" fill="#1C1C26" />
                 <Rect x="280" y="115" width="100" height="85" rx="8" fill="#1C1C26" />
 
-                {/* Avenidas */}
                 <Line x1="0" y1="100" x2="400" y2="100" stroke="#252533" strokeWidth="16" />
                 <Line x1="125" y1="0" x2="125" y2="220" stroke="#252533" strokeWidth="14" />
                 <Line x1="265" y1="0" x2="265" y2="220" stroke="#252533" strokeWidth="14" />
 
-                {/* Faixas Tracejadas */}
                 <Line x1="0" y1="100" x2="400" y2="100" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
                 <Line x1="125" y1="0" x2="125" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
                 <Line x1="265" y1="0" x2="265" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
 
-                {/* Zona de Risco Dinâmica conforme a rota escolhida */}
                 <Circle
                   cx={mapaAtual.riscoCx}
                   cy={mapaAtual.riscoCy}
@@ -299,7 +337,6 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                   strokeDasharray="4,4"
                 />
 
-                {/* Traçado da Rota Dinâmica */}
                 {perfil === "CADEIRANTE" ? (
                   <G>
                     <Path
@@ -342,12 +379,9 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 )}
               </Svg>
 
-              {/* Ponto A (Origem Fixa do Usuário) */}
               <View style={[styles.mapPin, styles.pinStart, { left: "13.7%", top: "75%" }]}>
                 <Text style={styles.mapPointText}>A</Text>
               </View>
-
-              {/* Ponto B (Destino Dinâmico conforme a Rota) */}
               <View
                 style={[
                   styles.mapPin,
@@ -357,8 +391,6 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
               >
                 <Text style={styles.mapPointText}>B</Text>
               </View>
-
-              {/* Ícone de Risco Dinâmico */}
               <View
                 style={[
                   styles.mapRiskBadge,
@@ -368,7 +400,6 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 <Text style={{ fontSize: 13 }}>⚠️</Text>
               </View>
 
-              {/* Etiqueta Informativa Superior */}
               <View style={styles.mapInfoLabel}>
                 <Text style={styles.mapInfoLabelText}>
                   {perfil === "CADEIRANTE"
@@ -394,6 +425,22 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
               </View>
             </View>
           </View>
+
+          {/* BANNER DE COLABORAÇÃO COMUNITÁRIA */}
+          <TouchableOpacity
+            style={styles.communityBanner}
+            onPress={() => setModalReportVisible(true)}
+          >
+            <View style={{ flex: 1 }}>
+              <Text style={styles.communityBannerTitle}>📢 Viu algum risco ou bloqueio na via?</Text>
+              <Text style={styles.communityBannerSub}>
+                Ajude outros usuários reportando alagamentos ou rampas obstruídas.
+              </Text>
+            </View>
+            <View style={styles.communityBannerBtn}>
+              <Text style={styles.communityBannerBtnText}>+ Reportar Risco</Text>
+            </View>
+          </TouchableOpacity>
 
           {/* RESUMO */}
           <View style={styles.sectionHeader}>
@@ -426,9 +473,9 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             </View>
           </View>
 
-          {/* EVENTOS DINÂMICOS DA API */}
+          {/* EVENTOS DINÂMICOS DA API E COMUNIDADE */}
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Eventos cadastrados</Text>
+            <Text style={styles.sectionTitle}>Alertas e ocorrências</Text>
             {carregando ? (
               <ActivityIndicator size="small" color="#FF0055" />
             ) : (
@@ -512,6 +559,72 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
         </ScrollView>
       )}
 
+      {/* MODAL DE REPORTAR RISCO COMUNITÁRIO */}
+      <Modal
+        visible={modalReportVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalReportVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalCard}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>📢 Reportar Risco na Via</Text>
+              <TouchableOpacity onPress={() => setModalReportVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.modalLabel}>TIPO DE OCORRÊNCIA</Text>
+            <View style={styles.reportTypesGrid}>
+              {[
+                "🌊 Alagamento na Via",
+                "♿ Rampa Obstruída",
+                "🧊 Granizo / Vento Forte",
+                "⚡ Queda de Árvore / Fio",
+              ].map((item) => (
+                <TouchableOpacity
+                  key={item}
+                  style={[
+                    styles.typeChip,
+                    tipoRiscoReport === item && styles.typeChipActive,
+                  ]}
+                  onPress={() => setTipoRiscoReport(item)}
+                >
+                  <Text style={styles.typeChipText}>{item}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <Text style={styles.modalLabel}>LOCALIZAÇÃO / REFERÊNCIA</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ex: Av. Paulista, 1200 (próx. ao metrô)"
+              placeholderTextColor="#666677"
+              value={localReport}
+              onChangeText={setLocalReport}
+            />
+
+            <Text style={styles.modalLabel}>DETALHES ADICIONAIS (OPCIONAL)</Text>
+            <TextInput
+              style={styles.modalInput}
+              placeholder="Ex: Água subindo rápido na calçada"
+              placeholderTextColor="#666677"
+              value={descReport}
+              onChangeText={setDescReport}
+            />
+
+            <Text style={styles.lgpdText}>
+              🔒 Seu relato será publicado com confiança inicial de 40% e auditado pela Defesa Civil.
+            </Text>
+
+            <TouchableOpacity style={styles.modalSubmitBtn} onPress={enviarReporteComunitario}>
+              <Text style={styles.modalSubmitText}>Enviar Alerta Comunitário</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
       {/* MENU INFERIOR */}
       <View style={styles.bottomBar}>
         <TouchableOpacity style={styles.tabButton} onPress={() => setTela("INICIO")}>
@@ -541,38 +654,47 @@ const styles = StyleSheet.create({
   scrollContent: { paddingBottom: 20 },
   header: {
     backgroundColor: "#141419",
-    paddingHorizontal: 22,
+    paddingHorizontal: 20,
     paddingTop: 20,
-    paddingBottom: 22,
+    paddingBottom: 20,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: "#22222E",
   },
-  logo: { fontSize: 25, fontWeight: "bold", color: "#FFFFFF" },
-  headerSubtitle: { color: "#888899", fontSize: 12, marginTop: 5 },
+  logo: { fontSize: 23, fontWeight: "bold", color: "#FFFFFF" },
+  headerSubtitle: { color: "#888899", fontSize: 11, marginTop: 4 },
+  reportHeaderBtn: {
+    backgroundColor: "#12242A",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#00D4FF",
+  },
+  reportHeaderText: { color: "#00D4FF", fontWeight: "bold", fontSize: 11 },
   sosHeaderBtn: {
     backgroundColor: "#FF0055",
-    paddingHorizontal: 12,
+    paddingHorizontal: 11,
     paddingVertical: 8,
     borderRadius: 10,
   },
-  sosHeaderText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 12 },
+  sosHeaderText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 11 },
   avatar: {
-    width: 43,
-    height: 43,
-    borderRadius: 25,
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     backgroundColor: "#2A121A",
     borderWidth: 1,
     borderColor: "#FF0055",
     alignItems: "center",
     justifyContent: "center",
   },
-  avatarText: { fontSize: 19, color: "#FF0055", fontWeight: "bold" },
-  welcome: { paddingHorizontal: 20, paddingTop: 22, paddingBottom: 14 },
-  welcomeTitle: { fontSize: 23, fontWeight: "bold", color: "#FFFFFF" },
-  welcomeSubtitle: { fontSize: 13, color: "#888899", marginTop: 5 },
+  avatarText: { fontSize: 17, color: "#FF0055", fontWeight: "bold" },
+  welcome: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14 },
+  welcomeTitle: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF" },
+  welcomeSubtitle: { fontSize: 13, color: "#888899", marginTop: 4 },
   routeChipsRow: {
     flexDirection: "row",
     paddingHorizontal: 16,
@@ -620,8 +742,8 @@ const styles = StyleSheet.create({
   searchFeedback: { color: "#00FF66", fontSize: 11, marginTop: 10 },
   sectionHeader: {
     marginHorizontal: 18,
-    marginTop: 25,
-    marginBottom: 13,
+    marginTop: 22,
+    marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
@@ -637,18 +759,6 @@ const styles = StyleSheet.create({
     borderColor: "#333344",
   },
   profileBadgeTagText: { color: "#00FF66", fontSize: 10, fontWeight: "bold" },
-  summaryRow: { flexDirection: "row", gap: 10, marginHorizontal: 16 },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: "#141419",
-    paddingVertical: 15,
-    borderRadius: 13,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "#22222E",
-  },
-  summaryNumber: { color: "#FFFFFF", fontSize: 23, fontWeight: "bold" },
-  summaryLabel: { color: "#777788", fontSize: 10, marginTop: 5 },
   mapContainer: {
     marginHorizontal: 16,
     backgroundColor: "#141419",
@@ -708,6 +818,39 @@ const styles = StyleSheet.create({
   legend: { flexDirection: "row", alignItems: "center", gap: 8 },
   legendIndicator: { width: 10, height: 10, borderRadius: 5 },
   legendText: { fontSize: 11, color: "#9999AA", fontWeight: "500" },
+  communityBanner: {
+    marginHorizontal: 16,
+    marginTop: 18,
+    backgroundColor: "#141419",
+    borderRadius: 14,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#00D4FF55",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  communityBannerTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold", marginBottom: 4 },
+  communityBannerSub: { color: "#888899", fontSize: 11, lineHeight: 16 },
+  communityBannerBtn: {
+    backgroundColor: "#00D4FF",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  communityBannerBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 11 },
+  summaryRow: { flexDirection: "row", gap: 10, marginHorizontal: 16 },
+  summaryCard: {
+    flex: 1,
+    backgroundColor: "#141419",
+    paddingVertical: 15,
+    borderRadius: 13,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  summaryNumber: { color: "#FFFFFF", fontSize: 23, fontWeight: "bold" },
+  summaryLabel: { color: "#777788", fontSize: 10, marginTop: 5 },
   eventCount: { color: "#888899", fontSize: 11 },
   eventCard: {
     backgroundColor: "#141419",
@@ -787,6 +930,60 @@ const styles = StyleSheet.create({
     borderColor: "#FF0055",
   },
   logoutFullBtnText: { color: "#FF0055", fontWeight: "bold", fontSize: 14 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 440,
+    backgroundColor: "#141419",
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#333344",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "bold" },
+  modalClose: { color: "#888899", fontSize: 18, fontWeight: "bold", padding: 4 },
+  modalLabel: { color: "#888899", fontSize: 10, fontWeight: "bold", marginTop: 10, marginBottom: 6 },
+  reportTypesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 6 },
+  typeChip: {
+    backgroundColor: "#1C1C26",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+  },
+  typeChipActive: { backgroundColor: "#12242A", borderColor: "#00D4FF" },
+  typeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600" },
+  modalInput: {
+    backgroundColor: "#1C1C26",
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+    borderRadius: 10,
+    padding: 12,
+    color: "#FFFFFF",
+    fontSize: 13,
+  },
+  lgpdText: { color: "#777788", fontSize: 11, marginTop: 12, lineHeight: 16 },
+  modalSubmitBtn: {
+    backgroundColor: "#00D4FF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  modalSubmitText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 14 },
   bottomBar: {
     height: 65,
     backgroundColor: "#141419",
