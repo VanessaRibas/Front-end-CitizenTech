@@ -23,6 +23,92 @@ interface DashboardUserProps {
   onLogout: () => void;
 }
 
+// Configuração visual e geográfica distinta para cada uma das 4 rotas
+const CONFIG_MAPAS: Record<
+  TipoRota,
+  {
+    tituloDestino: string;
+    placeholderDestino: string;
+    caminhoCadeirante: string;
+    caminhoVisual: string;
+    pinBLeft: `${number}%`;
+    pinBTop: `${number}%`;
+    riscoCx: number;
+    riscoCy: number;
+    riscoLeft: `${number}%`;
+    riscoTop: `${number}%`;
+    etiquetaCadeirante: string;
+    etiquetaVisual: string;
+    legendaCadeirante: string;
+    legendaVisual: string;
+  }
+> = {
+  CASA: {
+    tituloDestino: "DESTINO (RETORNO À RESIDÊNCIA)",
+    placeholderDestino: "Rua das Acácias, 450 - Residência",
+    caminhoCadeirante: "M 55 165 L 125 165 L 125 50 L 55 50",
+    caminhoVisual: "M 55 165 L 55 50",
+    pinBLeft: "13.7%",
+    pinBTop: "22.7%",
+    riscoCx: 265,
+    riscoCy: 145,
+    riscoLeft: "66.2%",
+    riscoTop: "65.9%",
+    etiquetaCadeirante: "✓ Rota direta para casa sem degraus",
+    etiquetaVisual: "✓ Calçada com piso tátil até sua residência",
+    legendaCadeirante: "Retorno à residência: trajeto plano e acessível",
+    legendaVisual: "Retorno à residência: guia tátil e semáforo sonoro",
+  },
+  ABRIGO: {
+    tituloDestino: "DESTINO (ABRIGO PÚBLICO ACESSÍVEL)",
+    placeholderDestino: "Estação Consolação / Escola Adaptada (450m)",
+    caminhoCadeirante: "M 55 165 L 125 165 L 125 100 L 265 100 L 265 50 L 345 50",
+    caminhoVisual: "M 55 165 L 125 165 L 125 50 L 345 50",
+    pinBLeft: "86.2%",
+    pinBTop: "22.7%",
+    riscoCx: 265,
+    riscoCy: 145,
+    riscoLeft: "66.2%",
+    riscoTop: "65.9%",
+    etiquetaCadeirante: "✓ Abrigo com elevador e rampa operacional",
+    etiquetaVisual: "✓ Acesso coberto com sinalização sonora",
+    legendaCadeirante: "Abrigo Público: elevador ativo e banheiro adaptado",
+    legendaVisual: "Abrigo Público: entrada assistida pela Defesa Civil",
+  },
+  REDE: {
+    tituloDestino: "DESTINO (REDE PESSOAL DE APOIO)",
+    placeholderDestino: "Casa da Mãe / Local Seguro Cadastrado",
+    caminhoCadeirante: "M 55 165 L 265 165 L 265 175 L 345 175",
+    caminhoVisual: "M 55 165 L 345 165",
+    pinBLeft: "86.2%",
+    pinBTop: "77.2%",
+    riscoCx: 125,
+    riscoCy: 60,
+    riscoLeft: "31.2%",
+    riscoTop: "27.2%",
+    etiquetaCadeirante: "✓ Trajeto seguro até contato de confiança",
+    etiquetaVisual: "✓ Rota acompanhada pela Rede de Apoio",
+    legendaCadeirante: "Rede de Apoio: familiar notificado da sua chegada",
+    legendaVisual: "Rede de Apoio: compartilhamento de GPS em tempo real",
+  },
+  DESVIO: {
+    tituloDestino: "DESTINO (DESVIO PROATIVO DE RISCO)",
+    placeholderDestino: "Rota Alternativa (Contornando Alagamento)",
+    caminhoCadeirante: "M 55 165 L 55 100 L 125 100 L 125 35 L 265 35 L 265 100 L 345 100",
+    caminhoVisual: "M 55 165 L 125 165 L 125 35 L 345 35 L 345 100",
+    pinBLeft: "86.2%",
+    pinBTop: "45.4%",
+    riscoCx: 195,
+    riscoCy: 100,
+    riscoLeft: "48.7%",
+    riscoTop: "45.4%",
+    etiquetaCadeirante: "⚠️ Desviando de alagamento severo na Av. Principal",
+    etiquetaVisual: "⚠️ Desviando de obra e calçada obstruída",
+    legendaCadeirante: "Desvio Proativo: contorno 100% livre de enxurradas",
+    legendaVisual: "Desvio Proativo: evitando bloqueios sonoros e físicos",
+  },
+};
+
 export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) {
   const [tela, setTela] = useState<AbaUsuario>("INICIO");
   const [perfil, setPerfil] = useState<PerfilPCD>(userData?.deficiencia || "CADEIRANTE");
@@ -53,6 +139,12 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   }, []);
 
   const nomeUsuario = userData?.nome || "Vanessa";
+  const mapaAtual = CONFIG_MAPAS[tipoRota];
+
+  function selecionarTipoRota(novaRota: TipoRota) {
+    setTipoRota(novaRota);
+    setRotaAtualizada(false);
+  }
 
   return (
     <View style={styles.container}>
@@ -113,7 +205,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
               <TouchableOpacity
                 key={r}
                 style={[styles.routeChip, tipoRota === r && styles.routeChipActive]}
-                onPress={() => setTipoRota(r)}
+                onPress={() => selecionarTipoRota(r)}
               >
                 <Text style={[styles.routeChipText, tipoRota === r && { color: "#FFFFFF" }]}>
                   {r === "CASA" && "🏠 Casa"}
@@ -139,11 +231,11 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 <Text style={styles.locationLabel}>ORIGEM</Text>
                 <Text style={styles.locationValue}>Minha localização atual</Text>
                 <View style={styles.inputDivider} />
-                <Text style={styles.locationLabel}>DESTINO ({tipoRota})</Text>
+                <Text style={styles.locationLabel}>{mapaAtual.tituloDestino}</Text>
                 <TextInput
                   value={destino}
                   onChangeText={setDestino}
-                  placeholder="Digite seu destino (ex: Av. Paulista)"
+                  placeholder={mapaAtual.placeholderDestino}
                   placeholderTextColor="#666677"
                   style={styles.destinationInput}
                 />
@@ -152,16 +244,155 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
             <TouchableOpacity
               style={styles.searchButton}
-              onPress={() => destino.trim().length > 0 && setRotaAtualizada(true)}
+              onPress={() => setRotaAtualizada(true)}
             >
               <Text style={styles.searchButtonText}>Calcular Rota Adaptada →</Text>
             </TouchableOpacity>
 
             {rotaAtualizada && (
               <Text style={styles.searchFeedback}>
-                ✓ Rota ({tipoRota}) calculada com base no seu perfil ativo!
+                ✓ Rota ({tipoRota}) recalculada e sincronizada no mapa abaixo!
               </Text>
             )}
+          </View>
+
+          {/* MAPA VETORIAL DINÂMICO POR ROTA E PERFIL */}
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Mapa: Rota {tipoRota}</Text>
+            <View style={styles.profileBadgeTag}>
+              <Text style={styles.profileBadgeTagText}>
+                {perfil === "CADEIRANTE" ? "♿ Modo Cadeirante" : "🦯 Modo Def. Visual"}
+              </Text>
+            </View>
+          </View>
+
+          <View style={styles.mapContainer}>
+            <View style={styles.map}>
+              <Svg width="100%" height="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
+                {/* Fundo e Quarteirões */}
+                <Rect x="0" y="0" width="400" height="220" fill="#13131A" />
+                <Rect x="20" y="20" width="90" height="65" rx="8" fill="#1C1C26" />
+                <Rect x="140" y="20" width="110" height="65" rx="8" fill="#1C1C26" />
+                <Rect x="280" y="20" width="100" height="65" rx="8" fill="#1C1C26" />
+                <Rect x="20" y="115" width="90" height="85" rx="8" fill="#1C1C26" />
+                <Rect x="140" y="115" width="110" height="85" rx="8" fill="#1C1C26" />
+                <Rect x="280" y="115" width="100" height="85" rx="8" fill="#1C1C26" />
+
+                {/* Avenidas */}
+                <Line x1="0" y1="100" x2="400" y2="100" stroke="#252533" strokeWidth="16" />
+                <Line x1="125" y1="0" x2="125" y2="220" stroke="#252533" strokeWidth="14" />
+                <Line x1="265" y1="0" x2="265" y2="220" stroke="#252533" strokeWidth="14" />
+
+                {/* Faixas Tracejadas */}
+                <Line x1="0" y1="100" x2="400" y2="100" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
+                <Line x1="125" y1="0" x2="125" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
+                <Line x1="265" y1="0" x2="265" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
+
+                {/* Zona de Risco Dinâmica conforme a rota escolhida */}
+                <Circle
+                  cx={mapaAtual.riscoCx}
+                  cy={mapaAtual.riscoCy}
+                  r="26"
+                  fill="rgba(255, 0, 85, 0.18)"
+                  stroke="#FF0055"
+                  strokeWidth="1.5"
+                  strokeDasharray="4,4"
+                />
+
+                {/* Traçado da Rota Dinâmica */}
+                {perfil === "CADEIRANTE" ? (
+                  <G>
+                    <Path
+                      d={mapaAtual.caminhoCadeirante}
+                      stroke="rgba(0, 255, 102, 0.25)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                    <Path
+                      d={mapaAtual.caminhoCadeirante}
+                      stroke="#00FF66"
+                      strokeWidth="4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </G>
+                ) : (
+                  <G>
+                    <Path
+                      d={mapaAtual.caminhoVisual}
+                      stroke="rgba(0, 212, 255, 0.25)"
+                      strokeWidth="10"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                    <Path
+                      d={mapaAtual.caminhoVisual}
+                      stroke="#00D4FF"
+                      strokeWidth="4"
+                      strokeDasharray="6,4"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      fill="none"
+                    />
+                  </G>
+                )}
+              </Svg>
+
+              {/* Ponto A (Origem Fixa do Usuário) */}
+              <View style={[styles.mapPin, styles.pinStart, { left: "13.7%", top: "75%" }]}>
+                <Text style={styles.mapPointText}>A</Text>
+              </View>
+
+              {/* Ponto B (Destino Dinâmico conforme a Rota) */}
+              <View
+                style={[
+                  styles.mapPin,
+                  styles.pinEnd,
+                  { left: mapaAtual.pinBLeft, top: mapaAtual.pinBTop },
+                ]}
+              >
+                <Text style={styles.mapPointText}>B</Text>
+              </View>
+
+              {/* Ícone de Risco Dinâmico */}
+              <View
+                style={[
+                  styles.mapRiskBadge,
+                  { left: mapaAtual.riscoLeft, top: mapaAtual.riscoTop },
+                ]}
+              >
+                <Text style={{ fontSize: 13 }}>⚠️</Text>
+              </View>
+
+              {/* Etiqueta Informativa Superior */}
+              <View style={styles.mapInfoLabel}>
+                <Text style={styles.mapInfoLabelText}>
+                  {perfil === "CADEIRANTE"
+                    ? mapaAtual.etiquetaCadeirante
+                    : mapaAtual.etiquetaVisual}
+                </Text>
+              </View>
+            </View>
+
+            <View style={styles.mapFooter}>
+              <View style={styles.legend}>
+                <View
+                  style={[
+                    styles.legendIndicator,
+                    { backgroundColor: perfil === "CADEIRANTE" ? "#00FF66" : "#00D4FF" },
+                  ]}
+                />
+                <Text style={styles.legendText}>
+                  {perfil === "CADEIRANTE"
+                    ? mapaAtual.legendaCadeirante
+                    : mapaAtual.legendaVisual}
+                </Text>
+              </View>
+            </View>
           </View>
 
           {/* RESUMO */}
@@ -192,123 +423,6 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                   : eventos.filter((e) => e.prioridade !== "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Outros riscos</Text>
-            </View>
-          </View>
-
-          {/* MAPA VETORIAL RESPONSIVO */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Mapa de Rota Dinâmico</Text>
-            <View style={styles.profileBadgeTag}>
-              <Text style={styles.profileBadgeTagText}>
-                {perfil === "CADEIRANTE" ? "♿ Modo Cadeirante" : "🦯 Modo Def. Visual"}
-              </Text>
-            </View>
-          </View>
-
-          <View style={styles.mapContainer}>
-            <View style={styles.map}>
-              <Svg width="100%" height="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
-                <Rect x="0" y="0" width="400" height="220" fill="#13131A" />
-                <Rect x="20" y="20" width="90" height="65" rx="8" fill="#1C1C26" />
-                <Rect x="140" y="20" width="110" height="65" rx="8" fill="#1C1C26" />
-                <Rect x="280" y="20" width="100" height="65" rx="8" fill="#1C1C26" />
-                <Rect x="20" y="115" width="90" height="85" rx="8" fill="#1C1C26" />
-                <Rect x="140" y="115" width="110" height="85" rx="8" fill="#1C1C26" />
-                <Rect x="280" y="115" width="100" height="85" rx="8" fill="#1C1C26" />
-
-                <Line x1="0" y1="100" x2="400" y2="100" stroke="#252533" strokeWidth="16" />
-                <Line x1="125" y1="0" x2="125" y2="220" stroke="#252533" strokeWidth="14" />
-                <Line x1="265" y1="0" x2="265" y2="220" stroke="#252533" strokeWidth="14" />
-
-                <Line x1="0" y1="100" x2="400" y2="100" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
-                <Line x1="125" y1="0" x2="125" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
-                <Line x1="265" y1="0" x2="265" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
-
-                <Circle
-                  cx="265"
-                  cy="145"
-                  r="26"
-                  fill="rgba(255, 0, 85, 0.15)"
-                  stroke="#FF0055"
-                  strokeWidth="1.5"
-                  strokeDasharray="4,4"
-                />
-
-                {perfil === "CADEIRANTE" ? (
-                  <G>
-                    <Path
-                      d="M 55 165 L 125 165 L 125 100 L 265 100 L 265 50 L 345 50"
-                      stroke="rgba(0, 255, 102, 0.25)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <Path
-                      d="M 55 165 L 125 165 L 125 100 L 265 100 L 265 50 L 345 50"
-                      stroke="#00FF66"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </G>
-                ) : (
-                  <G>
-                    <Path
-                      d="M 55 165 L 125 165 L 125 50 L 345 50"
-                      stroke="rgba(0, 212, 255, 0.25)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <Path
-                      d="M 55 165 L 125 165 L 125 50 L 345 50"
-                      stroke="#00D4FF"
-                      strokeWidth="4"
-                      strokeDasharray="6,4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </G>
-                )}
-              </Svg>
-
-              <View style={[styles.mapPin, styles.pinStart, { left: "13.7%", top: "75%" }]}>
-                <Text style={styles.mapPointText}>A</Text>
-              </View>
-              <View style={[styles.mapPin, styles.pinEnd, { left: "86.2%", top: "22.7%" }]}>
-                <Text style={styles.mapPointText}>B</Text>
-              </View>
-              <View style={[styles.mapRiskBadge, { left: "66.2%", top: "65.9%" }]}>
-                <Text style={{ fontSize: 13 }}>⚠️</Text>
-              </View>
-
-              <View style={styles.mapInfoLabel}>
-                <Text style={styles.mapInfoLabelText}>
-                  {perfil === "CADEIRANTE"
-                    ? "✓ Rota otimizada sem escadas/lombadas"
-                    : "✓ Rota com piso tátil e alertas sonoros"}
-                </Text>
-              </View>
-            </View>
-
-            <View style={styles.mapFooter}>
-              <View style={styles.legend}>
-                <View
-                  style={[
-                    styles.legendIndicator,
-                    { backgroundColor: perfil === "CADEIRANTE" ? "#00FF66" : "#00D4FF" },
-                  ]}
-                />
-                <Text style={styles.legendText}>
-                  {perfil === "CADEIRANTE"
-                    ? "Trajeto seguro para cadeiras de rodas (Desviando de risco)"
-                    : "Trajeto assistido com guia tátil e sonoro"}
-                </Text>
-              </View>
             </View>
           </View>
 
