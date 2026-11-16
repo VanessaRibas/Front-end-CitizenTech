@@ -1,28 +1,28 @@
-import React, { useState, useEffect } from "react";
-import {
-  View,
-  Text,
-  StyleSheet,
-  ScrollView,
-  TextInput,
-  TouchableOpacity,
-  StatusBar,
-  ActivityIndicator,
-} from "react-native";
+import React, { useState } from "react";
+import { StatusBar, Alert } from "react-native";
 
+<<<<<<< HEAD
 import { Alerta } from "./src/interfaces/alerta";
 import { listarAlertas } from "./src/services/alertaService";
 import { listarEventos } from "./src/services/eventoService";
+=======
+import { LoginScreen, UserRole } from "./src/screens/LoginScreen";
+import { SelectRoleScreen } from "./src/screens/SelectRoleScreen";
+import { RegisterScreen } from "./src/screens/RegisterScreen";
+import { DashboardUserScreen } from "./src/screens/DashboardUserScreen";
+import { DashboardContactScreen } from "./src/screens/DashboardContactScreen";
+import { DashboardAdminScreen } from "./src/screens/DashboardAdminScreen";
+>>>>>>> Dev/-kethely
 
-type Perfil = "VISUAL" | "CADEIRANTE";
-type Tela = "INICIO" | "PERFIL";
+type AppRoute = "LOGIN" | "SELECT_ROLE" | "REGISTER" | "DASHBOARD";
 
 export default function App() {
-  const [tela, setTela] = useState<Tela>("INICIO");
-  const [perfil, setPerfil] = useState<Perfil>("CADEIRANTE");
-  const [destino, setDestino] = useState("");
-  const [rotaAtualizada, setRotaAtualizada] = useState(false);
+  const [currentRoute, setCurrentRoute] = useState<AppRoute>("LOGIN");
+  const [userRole, setUserRole] = useState<UserRole>("PCD");
+  const [registerRole, setRegisterRole] = useState<UserRole>("PCD");
+  const [userData, setUserData] = useState<any>(null);
 
+<<<<<<< HEAD
   // Estados separados para Alertas e Eventos do Backend
   const [alertas, setAlertas] = useState<Alerta[]>([]);
   const [eventos, setEventos] = useState<any[]>([]);
@@ -54,17 +54,36 @@ export default function App() {
   useEffect(() => {
     carregarDadosDoBackend();
   }, []);
+=======
+  function handleLoginSuccess(role: UserRole, email: string) {
+    setUserRole(role);
+    setUserData({ nome: email.split("@")[0], email });
+    setCurrentRoute("DASHBOARD");
+  }
 
-  function buscarRota() {
-    if (destino.trim().length > 0) {
-      setRotaAtualizada(true);
-    }
+  function handleSelectRegisterRole(role: UserRole) {
+    setRegisterRole(role);
+    setCurrentRoute("REGISTER");
+  }
+>>>>>>> Dev/-kethely
+
+  function handleCompleteRegister(role: UserRole, data: any) {
+    setUserRole(role);
+    setUserData(data);
+    Alert.alert("Sucesso!", "Cadastro concluído com sucesso.");
+    setCurrentRoute("DASHBOARD");
+  }
+
+  function handleLogout() {
+    setCurrentRoute("LOGIN");
+    setUserData(null);
   }
 
   // Pega o primeiro alerta para o card principal de destaque
   const alertaPrincipal = alertas.length > 0 ? alertas[0] : null;
 
   return (
+<<<<<<< HEAD
     <View style={styles.container}>
       <StatusBar backgroundColor="#0B0B0E" barStyle="light-content" />
 
@@ -1092,3 +1111,44 @@ const styles = StyleSheet.create({
     fontWeight: "bold",
   },
 });
+=======
+    <>
+      <StatusBar backgroundColor="#0B0B0E" barStyle="light-content" />
+
+      {currentRoute === "LOGIN" && (
+        <LoginScreen
+          onLoginSuccess={handleLoginSuccess}
+          onNavigateToRegister={() => setCurrentRoute("SELECT_ROLE")}
+        />
+      )}
+
+      {currentRoute === "SELECT_ROLE" && (
+        <SelectRoleScreen
+          onSelectRole={handleSelectRegisterRole}
+          onBackToLogin={() => setCurrentRoute("LOGIN")}
+        />
+      )}
+
+      {currentRoute === "REGISTER" && (
+        <RegisterScreen
+          role={registerRole}
+          onCompleteRegister={handleCompleteRegister}
+          onBack={() => setCurrentRoute("SELECT_ROLE")}
+        />
+      )}
+
+      {currentRoute === "DASHBOARD" && userRole === "PCD" && (
+        <DashboardUserScreen userData={userData} onLogout={handleLogout} />
+      )}
+
+      {currentRoute === "DASHBOARD" && userRole === "CONTATO" && (
+        <DashboardContactScreen userData={userData} onLogout={handleLogout} />
+      )}
+
+      {currentRoute === "DASHBOARD" && userRole === "ADMIN" && (
+        <DashboardAdminScreen userData={userData} onLogout={handleLogout} />
+      )}
+    </>
+  );
+}
+>>>>>>> Dev/-kethely
