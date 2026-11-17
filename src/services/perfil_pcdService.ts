@@ -1,5 +1,5 @@
 import api from "./api";
-import { PerfilPcd } from "../interfaces/perfilPcd";
+import { PerfilPcd } from "../interfaces/perfil_pcd";
 
 export async function listarPerfisPcd(): Promise<PerfilPcd[]> {
   try {
