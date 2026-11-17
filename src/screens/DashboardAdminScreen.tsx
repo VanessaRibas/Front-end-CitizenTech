@@ -29,6 +29,10 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
   const [sosAtivos, setSosAtivos] = useState<any[]>([]);
   const [listaEventos, setListaEventos] = useState<any[]>([]);
 
+  // Paginação da Fila SOS (5 itens por página)
+  const [paginaSos, setPaginaSos] = useState(0);
+  const ITENS_POR_PAGINA = 5;
+
   // Gestão de Abrigos Públicos
   const [abrigos, setAbrigos] = useState([
     { id: 1, nome: "Estação Consolação (Metrô)", recurso: "Elevador OK", ocupacao: "45/100", status: "ABERTO" },
@@ -72,7 +76,16 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
     try {
       setCarregando(true);
       await deletarChamadoSOS(id);
-      setSosAtivos((prevSos) => prevSos.filter((item) => item.id !== id));
+      
+      const novaLista = sosAtivos.filter((item) => item.id !== id);
+      setSosAtivos(novaLista);
+
+      // Ajusta a página caso o último item da página atual tenha sido removido
+      const totalPaginas = Math.ceil(novaLista.length / ITENS_POR_PAGINA);
+      if (paginaSos >= totalPaginas && totalPaginas > 0) {
+        setPaginaSos(totalPaginas - 1);
+      }
+
       Alert.alert("🚒 Viatura Despachada", `O chamado SOS #${id} foi atendido e excluído do banco de dados!`);
     } catch (error) {
       console.error("Erro ao despachar e deletar chamado SOS:", error);
@@ -155,6 +168,13 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
     }
   }
 
+  // Lógica de Paginação da Fila SOS
+  const totalPaginasSos = Math.ceil(sosAtivos.length / ITENS_POR_PAGINA) || 1;
+  const sosPaginados = sosAtivos.slice(
+    paginaSos * ITENS_POR_PAGINA,
+    (paginaSos + 1) * ITENS_POR_PAGINA
+  );
+
   const nomeAgente = userData?.nome || "Agente Silva";
   const orgaoAgente = userData?.orgao || "Defesa Civil Municipal";
   const matriculaAgente = userData?.matricula || "DC-2026-89";
@@ -196,25 +216,56 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
                 Nenhum chamado SOS registrado na tabela chamadosSOS.
               </Text>
             ) : (
-              sosAtivos.map((sos) => (
-                <View key={`sos-${sos.id}`} style={styles.card}>
-                  <View style={styles.rowBetween}>
-                    <Text style={styles.cardTitle}>Chamado #{sos.id} • PCD ID: {sos.pcdId}</Text>
-                    <Text style={styles.badgeRed}>{sos.nivelAcionamento}</Text>
-                  </View>
-                  <Text style={styles.specText}>📡 Status: {sos.status}</Text>
-                  <Text style={styles.infoText}>📍 Coordenadas: {sos.latitude}, {sos.longitude}</Text>
-                  <Text style={styles.infoText}>🕒 Horário: {sos.dataHora ? new Date(sos.dataHora).toLocaleString() : "N/A"}</Text>
+              <View>
+                {/* CONTROLE DE SETAS PARA NAVEGAR ENTRE PÁGINAS */}
+                <View style={styles.paginacaoContainer}>
+                  <TouchableOpacity
+                    style={[styles.setaBtn, paginaSos === 0 && styles.setaBtnDisabled]}
+                    disabled={paginaSos === 0}
+                    onPress={() => setPaginaSos((prev) => Math.max(prev - 1, 0))}
+                  >
+                    <Text style={[styles.setaText, paginaSos === 0 && { color: "#444455" }]}>◀ Anterior</Text>
+                  </TouchableOpacity>
+
+                  <Text style={styles.paginacaoTexto}>
+                    Página {paginaSos + 1} de {totalPaginasSos}
+                  </Text>
 
                   <TouchableOpacity
-                    style={styles.actionBtn}
-                    disabled={carregando}
-                    onPress={() => despacharViatura(sos.id)}
+                    style={[styles.setaBtn, paginaSos >= totalPaginasSos - 1 && styles.setaBtnDisabled]}
+                    disabled={paginaSos >= totalPaginasSos - 1}
+                    onPress={() => setPaginaSos((prev) => Math.min(prev + 1, totalPaginasSos - 1))}
                   >
-                    <Text style={styles.actionBtnText}>🚒 Despachar Viatura & Deletar SOS</Text>
+                    <Text style={[styles.setaText, paginaSos >= totalPaginasSos - 1 && { color: "#444455" }]}>Próxima ▶</Text>
                   </TouchableOpacity>
                 </View>
-              ))
+
+                {/* GRID / LISTA DOS 5 ITENS DA PÁGINA ATUAL */}
+                <View style={{ gap: 10 }}>
+                  {sosPaginados.map((sos) => (
+                    <View key={`sos-${sos.id}`} style={styles.card}>
+                      <View style={styles.rowBetween}>
+                        <Text style={styles.cardTitle}>Chamado #{sos.id}</Text>
+                        <Text style={styles.badgeRed}>{sos.nivelAcionamento}</Text>
+                      </View>
+                      <View style={{ flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                        <Text style={styles.specText}>👤 PCD ID: {sos.pcdId}</Text>
+                        <Text style={styles.specText}>📡 Status: {sos.status}</Text>
+                        <Text style={styles.infoText}>📍 Coords: {sos.latitude?.toFixed(4)}, {sos.longitude?.toFixed(4)}</Text>
+                        <Text style={styles.infoText}>🕒 {sos.dataHora ? new Date(sos.dataHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}</Text>
+                      </View>
+
+                      <TouchableOpacity
+                        style={styles.actionBtn}
+                        disabled={carregando}
+                        onPress={() => despacharViatura(sos.id)}
+                      >
+                        <Text style={styles.actionBtnText}>🚒 Despachar Viatura & Deletar SOS</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))}
+                </View>
+              </View>
             )}
 
             <Text style={[styles.sectionTitle, { marginTop: 25 }]}>🏢 Gestão de Abrigos Públicos Acessíveis</Text>
@@ -447,6 +498,38 @@ const styles = StyleSheet.create({
     borderColor: "#22222E",
     marginBottom: 12,
   },
+  paginacaoContainer: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+    backgroundColor: "#141419",
+    padding: 10,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  setaBtn: {
+    backgroundColor: "#1C1C26",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#333344",
+  },
+  setaBtnDisabled: {
+    opacity: 0.5,
+  },
+  setaText: {
+    color: "#00D4FF",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+  paginacaoTexto: {
+    color: "#CCCCDD",
+    fontSize: 12,
+    fontWeight: "bold",
+  },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   cardTitle: { color: "#FFFFFF", fontSize: 15, fontWeight: "bold", marginBottom: 4 },
   badgeRed: {
@@ -468,7 +551,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   badgeStatus: { fontSize: 10, fontWeight: "bold", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
-  badgeGreen: { backgroundColor: "#122A1A", color: "#00FF66" },
+  badgeGreen: { backgroundColor: "#12242A", color: "#00FF66" },
   badgeAmber: { backgroundColor: "#2A2212", color: "#FBBF24" },
   specText: { color: "#00D4FF", fontSize: 12, fontWeight: "600", marginBottom: 4 },
   infoText: { color: "#9999AA", fontSize: 12, marginBottom: 6 },
@@ -477,7 +560,7 @@ const styles = StyleSheet.create({
     padding: 12,
     borderRadius: 10,
     alignItems: "center",
-    marginTop: 6,
+    marginTop: 10,
   },
   actionBtnText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 12 },
   shelterCard: {
