@@ -13,8 +13,9 @@ import {
 import Svg, { Path, Circle, Line, Rect, G } from "react-native-svg";
 
 import { EventoRisco } from "../interfaces/evento";
-import { listarEventos } from "../services/eventoService";
-import { listarAlertas } from "../services/alertaService"; // Importando serviço de alertas
+import { listarEventos, criarEvento } from "../services/eventoService";
+import { listarAlertas } from "../services/alertaService";
+import { criarChamadoSOS } from "../services/chamadoSOSService";
 
 type PerfilPCD = "VISUAL" | "CADEIRANTE";
 type AbaUsuario = "INICIO" | "PERFIL";
@@ -119,9 +120,12 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
   // Estados de Integração Backend Spring Boot
   const [eventos, setEventos] = useState<EventoRisco[]>([]);
-  const [alertas, setAlertas] = useState<any[]>([]); // Estado para os Alertas
+  const [alertas, setAlertas] = useState<any[]>([]);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [conectado, setConectado] = useState<boolean>(true);
+
+  // Estado do Modal do Sino de Notificações
+  const [modalNotificacoesVisible, setModalNotificacoesVisible] = useState(false);
 
   // Estados do Modal de Reportar Risco Comunitário
   const [modalReportVisible, setModalReportVisible] = useState(false);
@@ -151,40 +155,82 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   }, []);
 
   const nomeUsuario = userData?.nome || "Vanessa";
+  const pcdIdUsuario = userData?.id || 1;
   const mapaAtual = CONFIG_MAPAS[tipoRota];
+  const totalNotificacoes = eventos.length + alertas.length;
 
   function selecionarTipoRota(novaRota: TipoRota) {
     setTipoRota(novaRota);
     setRotaAtualizada(false);
   }
 
-  function enviarReporteComunitario() {
+  async function acionarSOS() {
+    try {
+      setCarregando(true);
+      const novoSos = {
+        pcdId: pcdIdUsuario,
+        agenteId: 1,
+        nivelAcionamento: "CRÍTICO",
+        latitude: -23.5505,
+        longitude: -46.6333,
+        status: "PENDENTE",
+        dataHora: new Date().toISOString(),
+      };
+
+      await criarChamadoSOS(novoSos);
+
+      Alert.alert(
+        "🚨 SOS EMERGÊNCIA ENVIADO",
+        `Chamado SOS registrado com sucesso para o usuário ID ${pcdIdUsuario}. Sua localização e ficha de acessibilidade foram despachadas para a Defesa Civil!`
+      );
+    } catch (error) {
+      console.error("Erro ao enviar SOS:", error);
+      Alert.alert("Erro de Conexão", "Não foi possível registrar o SOS no servidor. Tente novamente.");
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  async function enviarReporteComunitario() {
     if (!localReport.trim()) {
       Alert.alert("Campo obrigatório", "Informe a rua ou ponto de referência do risco.");
       return;
     }
 
-    const novoEvento: any = {
-      id: Date.now(),
+    const novoEventoPayload: any = {
       tipo: tipoRiscoReport.split(" ")[0],
       titulo: `${tipoRiscoReport.substring(2).trim()}`,
       descricao: descReport.trim() || "Ocorrência reportada pela comunidade local.",
       endereco: localReport.trim(),
-      prioridade: "MÉDIO",
-      cor: "#12242A",
-      corTexto: "#00D4FF",
-      origem: `Comunidade (${nomeUsuario})`,
-      confianca: "40% (Em validação)",
+      origemDado: `Comunidade (${nomeUsuario})`,
+      nivelConfianca: "40% (Em validação)",
+      nivelPrioridade: "MÉDIO",
+      status: "EM_VALIDACAO",
     };
 
-    setEventos([novoEvento, ...eventos]);
-    setLocalReport("");
-    setDescReport("");
-    setModalReportVisible(false);
-    Alert.alert(
-      "📢 Ocorrência Registrada!",
-      "Seu relato foi publicado no mapa com nível de confiança inicial de 40% e enviado para auditoria da Defesa Civil."
-    );
+    try {
+      setCarregando(true);
+      const eventoSalvo = await criarEvento(novoEventoPayload);
+      
+      if (eventoSalvo) {
+        setEventos([eventoSalvo, ...eventos]);
+      } else {
+        setEventos([novoEventoPayload, ...eventos]);
+      }
+
+      setLocalReport("");
+      setDescReport("");
+      setModalReportVisible(false);
+      Alert.alert(
+        "📢 Ocorrência Registrada!",
+        "Seu relato foi salvo no banco e publicado no mapa com nível de confiança inicial de 40% para auditoria da Defesa Civil."
+      );
+    } catch (error) {
+      console.error("Erro ao salvar evento reportado:", error);
+      Alert.alert("Erro", "Falha ao registrar o evento no servidor.");
+    } finally {
+      setCarregando(false);
+    }
   }
 
   return (
@@ -208,7 +254,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
       {tela === "INICIO" ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* CABEÇALHO */}
+          {/* CABEÇALHO COM O SINO DE NOTIFICAÇÃO */}
           <View style={styles.header}>
             <View>
               <Text style={styles.logo}>CitizenTech</Text>
@@ -216,6 +262,19 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             </View>
 
             <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              {/* BOTÃO SINO DE NOTIFICAÇÕES */}
+              <TouchableOpacity
+                style={styles.bellBtn}
+                onPress={() => setModalNotificacoesVisible(true)}
+              >
+                <Text style={{ fontSize: 18 }}>🔔</Text>
+                {totalNotificacoes > 0 && (
+                  <View style={styles.badgeCount}>
+                    <Text style={styles.badgeCountText}>{totalNotificacoes}</Text>
+                  </View>
+                )}
+              </TouchableOpacity>
+
               <TouchableOpacity
                 style={styles.reportHeaderBtn}
                 onPress={() => setModalReportVisible(true)}
@@ -225,12 +284,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
               <TouchableOpacity
                 style={styles.sosHeaderBtn}
-                onPress={() =>
-                  Alert.alert(
-                    "🚨 SOS EMERGÊNCIA",
-                    "Sua localização GPS e ficha de acessibilidade foram enviadas para a Defesa Civil (193) e sua Rede de Apoio!"
-                  )
-                }
+                onPress={acionarSOS}
               >
                 <Text style={styles.sosHeaderText}>SOS</Text>
               </TouchableOpacity>
@@ -304,7 +358,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             )}
           </View>
 
-          {/* MAPA VETORIAL DINÂMICO POR ROTA E PERFIL */}
+          {/* MAPA VETORIAL DINÂMICO */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Mapa: Rota {tipoRota}</Text>
             <View style={styles.profileBadgeTag}>
@@ -448,7 +502,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             </View>
           </TouchableOpacity>
 
-          {/* RESUMO */}
+          {/* RESUMO RÁPIDO */}
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Visão geral</Text>
             <Text style={styles.liveLabel}>{conectado ? "● DADOS DA API" : "● MODO OFFLINE"}</Text>
@@ -457,89 +511,27 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           <View style={styles.summaryRow}>
             <View style={styles.summaryCard}>
               <Text style={styles.summaryNumber}>
-                {eventos.length + alertas.length < 10 ? `0${eventos.length + alertas.length}` : eventos.length + alertas.length}
+                {totalNotificacoes < 10 ? `0${totalNotificacoes}` : totalNotificacoes}
               </Text>
               <Text style={styles.summaryLabel}>Total Registros</Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={[styles.summaryNumber, { color: "#FF0055" }]}>
-                {eventos.filter((e) => e.prioridade === "ALTA").length + alertas.filter((a) => a.nivelPrioridade === "ALTA").length < 10
-                  ? `0${eventos.filter((e) => e.prioridade === "ALTA").length + alertas.filter((a) => a.nivelPrioridade === "ALTA").length}`
-                  : eventos.filter((e) => e.prioridade === "ALTA").length + alertas.filter((a) => a.nivelPrioridade === "ALTA").length}
+                {eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length < 10
+                  ? `0${eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length}`
+                  : eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Alerta alto</Text>
             </View>
             <View style={styles.summaryCard}>
               <Text style={[styles.summaryNumber, { color: "#00FF66" }]}>
-                {eventos.filter((e) => e.prioridade !== "ALTA").length + alertas.filter((a) => a.nivelPrioridade !== "ALTA").length < 10
-                  ? `0${eventos.filter((e) => e.prioridade !== "ALTA").length + alertas.filter((a) => a.nivelPrioridade !== "ALTA").length}`
-                  : eventos.filter((e) => e.prioridade !== "ALTA").length + alertas.filter((a) => a.nivelPrioridade !== "ALTA").length}
+                {eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length < 10
+                  ? `0${eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length}`
+                  : eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length}
               </Text>
               <Text style={styles.summaryLabel}>Outros riscos</Text>
             </View>
           </View>
-
-          {/* EVENTOS DINÂMICOS DA API E COMUNIDADE */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Eventos cadastrados</Text>
-            {carregando ? (
-              <ActivityIndicator size="small" color="#FF0055" />
-            ) : (
-              <Text style={styles.eventCount}>{eventos.length} registros</Text>
-            )}
-          </View>
-
-          {eventos.map((evento) => (
-            <View key={`evento-${evento.id}`} style={styles.eventCard}>
-              <View style={styles.eventIcon}>
-                <Text style={{ fontSize: 23 }}>{evento.tipo || "⚠️"}</Text>
-              </View>
-              <View style={styles.eventContent}>
-                <View style={styles.eventTitleRow}>
-                  <Text style={styles.eventTitle}>{evento.titulo}</Text>
-                  <View style={[styles.eventPriority, { backgroundColor: evento.cor || "#2A121A" }]}>
-                    <Text style={[styles.eventPriorityText, { color: evento.corTexto || "#FF0055" }]}>
-                      {evento.prioridade}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.eventDescription}>{evento.descricao}</Text>
-                <Text style={styles.eventAddress}>📍 {evento.endereco}</Text>
-                <Text style={styles.eventTime}>
-                  Origem: {evento.origem} • Confiança: {evento.confianca}
-                </Text>
-              </View>
-            </View>
-          ))}
-
-          {/* ALERTAS CADASTRADOS */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Alertas cadastrados</Text>
-            <Text style={styles.eventCount}>{alertas.length} registros</Text>
-          </View>
-
-          {alertas.map((alerta, index) => (
-            <View key={`alerta-${alerta.id || index}`} style={[styles.eventCard, { borderColor: "#00D4FF44" }]}>
-              <View style={[styles.eventIcon, { backgroundColor: "#12242A" }]}>
-                <Text style={{ fontSize: 23 }}>{alerta.tipo || "🚨"}</Text>
-              </View>
-              <View style={styles.eventContent}>
-                <View style={styles.eventTitleRow}>
-                  <Text style={styles.eventTitle}>{alerta.titulo || alerta.nome || "Alerta sem título"}</Text>
-                  <View style={[styles.eventPriority, { backgroundColor: "#12242A", borderColor: "#00D4FF" }]}>
-                    <Text style={[styles.eventPriorityText, { color: "#00D4FF" }]}>
-                      {alerta.nivelPrioridade || alerta.prioridade || "ALTO"}
-                    </Text>
-                  </View>
-                </View>
-                <Text style={styles.eventDescription}>{alerta.descricao || "Sem descrição informada."}</Text>
-                <Text style={styles.eventAddress}>📍 {alerta.endereco || "Local não informado"}</Text>
-                <Text style={styles.eventTime}>
-                  Origem: {alerta.origemDado || alerta.origem || "Sistema"} • Confiança: {alerta.nivelConfianca || alerta.confianca || "Alta"}
-                </Text>
-              </View>
-            </View>
-          ))}
         </ScrollView>
       ) : (
         /* TELA DE PERFIL */
@@ -593,6 +585,83 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           </View>
         </ScrollView>
       )}
+
+      {/* MODAL DO SINO DE NOTIFICAÇÕES (EXIBE EVENTOS E ALERTAS) */}
+      <Modal
+        visible={modalNotificacoesVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setModalNotificacoesVisible(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={[styles.modalCard, { maxHeight: "80%" }]}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>🔔 Central de Notificações ({totalNotificacoes})</Text>
+              <TouchableOpacity onPress={() => setModalNotificacoesVisible(false)}>
+                <Text style={styles.modalClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 20 }}>
+              {totalNotificacoes === 0 ? (
+                <Text style={{ color: "#888899", textAlign: "center", marginTop: 20, marginBottom: 20 }}>
+                  Nenhum evento ou alerta cadastrado no momento.
+                </Text>
+              ) : (
+                <>
+                  {eventos.length > 0 && <Text style={styles.notifSectionLabel}>📋 EVENTOS</Text>}
+                  {eventos.map((evento) => (
+                    <View key={`evento-notif-${evento.id || Math.random()}`} style={styles.eventCard}>
+                      <View style={styles.eventIcon}>
+                        <Text style={{ fontSize: 21 }}>{evento.tipo || "⚠️"}</Text>
+                      </View>
+                      <View style={styles.eventContent}>
+                        <View style={styles.eventTitleRow}>
+                          <Text style={styles.eventTitle}>{evento.titulo}</Text>
+                          <View style={[styles.eventPriority, { backgroundColor: evento.cor || "#2A121A" }]}>
+                            <Text style={[styles.eventPriorityText, { color: evento.corTexto || "#FF0055" }]}>
+                              {evento.prioridade || evento.nivelPrioridade || "MÉDIO"}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.eventDescription}>{evento.descricao}</Text>
+                        <Text style={styles.eventAddress}>📍 {evento.endereco}</Text>
+                        <Text style={styles.eventTime}>
+                          Origem: {evento.origem || evento.origemDado || "Comunidade"} • Confiança: {evento.confianca || evento.nivelConfianca || "40%"}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+
+                  {alertas.length > 0 && <Text style={[styles.notifSectionLabel, { marginTop: 15 }]}>🚨 ALERTAS </Text>}
+                  {alertas.map((alerta, index) => (
+                    <View key={`alerta-notif-${alerta.id || index}`} style={[styles.eventCard, { borderColor: "#00D4FF44" }]}>
+                      <View style={[styles.eventIcon, { backgroundColor: "#12242A" }]}>
+                        <Text style={{ fontSize: 21 }}>{alerta.tipo || "🚨"}</Text>
+                      </View>
+                      <View style={styles.eventContent}>
+                        <View style={styles.eventTitleRow}>
+                          <Text style={styles.eventTitle}>{alerta.titulo || alerta.nome || "Alerta sem título"}</Text>
+                          <View style={[styles.eventPriority, { backgroundColor: "#12242A", borderColor: "#00D4FF" }]}>
+                            <Text style={[styles.eventPriorityText, { color: "#00D4FF" }]}>
+                              {alerta.nivelPrioridade || alerta.prioridade || "ALTO"}
+                            </Text>
+                          </View>
+                        </View>
+                        <Text style={styles.eventDescription}>{alerta.descricao || "Sem descrição informada."}</Text>
+                        <Text style={styles.eventAddress}>📍 {alerta.endereco || "Local não informado"}</Text>
+                        <Text style={styles.eventTime}>
+                          Origem: {alerta.origemDado || alerta.origem || "Sistema"} • Confiança: {alerta.nivelConfianca || alerta.confianca || "Alta"}
+                        </Text>
+                      </View>
+                    </View>
+                  ))}
+                </>
+              )}
+            </ScrollView>
+          </View>
+        </View>
+      </Modal>
 
       {/* MODAL DE REPORTAR RISCO COMUNITÁRIO */}
       <Modal
@@ -654,7 +723,9 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             </Text>
 
             <TouchableOpacity style={styles.modalSubmitBtn} onPress={enviarReporteComunitario}>
-              <Text style={styles.modalSubmitText}>Enviar Alerta Comunitário</Text>
+              <Text style={styles.modalSubmitText}>
+                {carregando ? "Enviando..." : "Enviar Alerta Comunitário"}
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -700,6 +771,30 @@ const styles = StyleSheet.create({
   },
   logo: { fontSize: 23, fontWeight: "bold", color: "#FFFFFF" },
   headerSubtitle: { color: "#888899", fontSize: 11, marginTop: 4 },
+  bellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#1C1C26",
+    borderWidth: 1,
+    borderColor: "#333344",
+    alignItems: "center",
+    justifyContent: "center",
+    position: "relative",
+  },
+  badgeCount: {
+    position: "absolute",
+    top: -4,
+    right: -4,
+    backgroundColor: "#FF0055",
+    borderRadius: 8,
+    minWidth: 16,
+    height: 16,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  badgeCountText: { color: "#FFFFFF", fontSize: 9, fontWeight: "bold" },
   reportHeaderBtn: {
     backgroundColor: "#12242A",
     paddingHorizontal: 10,
@@ -798,238 +893,146 @@ const styles = StyleSheet.create({
     marginHorizontal: 16,
     backgroundColor: "#141419",
     borderRadius: 16,
-    padding: 10,
     borderWidth: 1,
     borderColor: "#22222E",
-  },
-  map: {
-    height: 240,
-    backgroundColor: "#13131A",
-    borderRadius: 12,
     overflow: "hidden",
-    position: "relative",
-    borderWidth: 1,
-    borderColor: "#252533",
   },
+  map: { height: 210, width: "100%", position: "relative" },
   mapPin: {
     position: "absolute",
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: "center",
+    width: 26,
+    height: 26,
+    borderRadius: 13,
     alignItems: "center",
-    borderWidth: 2.5,
+    justifyContent: "center",
+    borderWidth: 2,
     borderColor: "#FFFFFF",
-    transform: [{ translateX: -15 }, { translateY: -15 }],
   },
-  pinStart: { backgroundColor: "#FF0055" },
-  pinEnd: { backgroundColor: "#00FF66" },
-  mapPointText: { color: "#0B0B0E", fontWeight: "900", fontSize: 12 },
+  pinStart: { backgroundColor: "#00FF66" },
+  pinEnd: { backgroundColor: "#FF0055" },
+  mapPointText: { color: "#0B0B0E", fontSize: 11, fontWeight: "bold" },
   mapRiskBadge: {
     position: "absolute",
     width: 28,
     height: 28,
-    backgroundColor: "#2A121A",
     borderRadius: 14,
-    justifyContent: "center",
-    alignItems: "center",
-    borderWidth: 1.5,
+    backgroundColor: "#2A121A",
+    borderWidth: 1,
     borderColor: "#FF0055",
-    transform: [{ translateX: -14 }, { translateY: -14 }],
+    alignItems: "center",
+    justifyContent: "center",
   },
   mapInfoLabel: {
     position: "absolute",
-    left: 12,
-    top: 12,
-    backgroundColor: "rgba(11, 11, 14, 0.9)",
+    bottom: 10,
+    left: 10,
+    right: 10,
+    backgroundColor: "rgba(19, 19, 26, 0.9)",
+    paddingVertical: 6,
     paddingHorizontal: 10,
-    paddingVertical: 5,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#333344",
   },
-  mapInfoLabelText: { color: "#FFFFFF", fontSize: 10, fontWeight: "bold" },
-  mapFooter: { paddingTop: 10, paddingHorizontal: 4 },
+  mapInfoLabelText: { color: "#FFFFFF", fontSize: 11, textAlign: "center", fontWeight: "600" },
+  mapFooter: { padding: 12, backgroundColor: "#1C1C26", borderTopWidth: 1, borderTopColor: "#252533" },
   legend: { flexDirection: "row", alignItems: "center", gap: 8 },
   legendIndicator: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { fontSize: 11, color: "#9999AA", fontWeight: "500" },
+  legendText: { color: "#CCCCDD", fontSize: 11 },
   communityBanner: {
     marginHorizontal: 16,
     marginTop: 18,
     backgroundColor: "#141419",
+    borderWidth: 1,
+    borderColor: "#00D4FF44",
     borderRadius: 14,
-    padding: 15,
-    borderWidth: 1,
-    borderColor: "#00D4FF55",
+    padding: 16,
     flexDirection: "row",
     alignItems: "center",
     gap: 12,
   },
-  communityBannerTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold", marginBottom: 4 },
-  communityBannerSub: { color: "#888899", fontSize: 11, lineHeight: 16 },
+  communityBannerTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold" },
+  communityBannerSub: { color: "#888899", fontSize: 11, marginTop: 3 },
   communityBannerBtn: {
-    backgroundColor: "#00D4FF",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  communityBannerBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 11 },
-  summaryRow: { flexDirection: "row", gap: 10, marginHorizontal: 16 },
-  summaryCard: {
-    flex: 1,
-    backgroundColor: "#141419",
-    paddingVertical: 15,
-    borderRadius: 13,
-    alignItems: "center",
+    backgroundColor: "#12242A",
     borderWidth: 1,
-    borderColor: "#22222E",
-  },
-  summaryNumber: { color: "#FFFFFF", fontSize: 23, fontWeight: "bold" },
-  summaryLabel: { color: "#777788", fontSize: 10, marginTop: 5 },
-  eventCount: { color: "#888899", fontSize: 11 },
-  eventCard: {
-    backgroundColor: "#141419",
-    marginHorizontal: 16,
-    marginBottom: 10,
-    borderRadius: 13,
-    padding: 13,
-    flexDirection: "row",
-    gap: 12,
-    borderWidth: 1,
-    borderColor: "#22222E",
-  },
-  eventIcon: {
-    width: 43,
-    height: 43,
-    borderRadius: 11,
-    backgroundColor: "#1C1C26",
-    justifyContent: "center",
-    alignItems: "center",
-  },
-  eventContent: { flex: 1 },
-  eventTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 5 },
-  eventTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold", flex: 1 },
-  eventPriority: { paddingHorizontal: 7, paddingVertical: 4, borderRadius: 5, borderWidth: 1 },
-  eventPriorityText: { fontSize: 8, fontWeight: "bold" },
-  eventDescription: { color: "#AAACC0", fontSize: 11, marginTop: 6 },
-  eventAddress: { color: "#888899", fontSize: 10, marginTop: 7 },
-  eventTime: { color: "#666677", fontSize: 9, marginTop: 5 },
-  profileHeader: {
-    backgroundColor: "#141419",
-    paddingHorizontal: 22,
-    paddingTop: 24,
-    paddingBottom: 28,
-    alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#22222E",
-  },
-  profileHeaderTitle: { color: "#FFFFFF", fontSize: 23, fontWeight: "bold", alignSelf: "flex-start" },
-  largeAvatar: {
-    width: 80,
-    height: 80,
-    borderRadius: 45,
-    backgroundColor: "#2A121A",
-    borderWidth: 2,
-    borderColor: "#FF0055",
-    alignItems: "center",
-    justifyContent: "center",
-    marginTop: 20,
-  },
-  largeAvatarText: { fontSize: 32, fontWeight: "bold", color: "#FF0055" },
-  profileName: { color: "#FFFFFF", fontSize: 19, fontWeight: "bold", marginTop: 12 },
-  profileEmail: { color: "#888899", fontSize: 12, marginTop: 4 },
-  profileSection: { marginHorizontal: 16, marginTop: 24 },
-  accessibilityCard: {
-    backgroundColor: "#141419",
-    borderRadius: 13,
-    padding: 14,
-    marginTop: 10,
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12,
-    borderWidth: 1.5,
-    borderColor: "#22222E",
-  },
-  accessibilitySelected: { backgroundColor: "#1F141C", borderColor: "#FF0055" },
-  accessibilityEmoji: { fontSize: 28 },
-  accessibilityTitle: { color: "#FFFFFF", fontWeight: "bold", fontSize: 13 },
-  accessibilitySubtitle: { color: "#888899", fontSize: 10, marginTop: 4 },
-  check: { color: "#FF0055", fontSize: 20 },
-  logoutFullBtn: {
-    backgroundColor: "#1C1C26",
-    padding: 14,
-    borderRadius: 12,
-    alignItems: "center",
-    marginTop: 24,
-    borderWidth: 1,
-    borderColor: "#FF0055",
-  },
-  logoutFullBtnText: { color: "#FF0055", fontWeight: "bold", fontSize: 14 },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20,
-  },
-  modalCard: {
-    width: "100%",
-    maxWidth: 440,
-    backgroundColor: "#141419",
-    borderRadius: 18,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: "#333344",
-  },
-  modalHeader: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    marginBottom: 16,
-  },
-  modalTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "bold" },
-  modalClose: { color: "#888899", fontSize: 18, fontWeight: "bold", padding: 4 },
-  modalLabel: { color: "#888899", fontSize: 10, fontWeight: "bold", marginTop: 10, marginBottom: 6 },
-  reportTypesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 6 },
-  typeChip: {
-    backgroundColor: "#1C1C26",
+    borderColor: "#00D4FF",
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "#2E2E3E",
   },
-  typeChipActive: { backgroundColor: "#12242A", borderColor: "#00D4FF" },
-  typeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600" },
-  modalInput: {
-    backgroundColor: "#1C1C26",
-    borderWidth: 1,
-    borderColor: "#2E2E3E",
-    borderRadius: 10,
-    padding: 12,
-    color: "#FFFFFF",
-    fontSize: 13,
-  },
-  lgpdText: { color: "#777788", fontSize: 11, marginTop: 12, lineHeight: 16 },
-  modalSubmitBtn: {
-    backgroundColor: "#00D4FF",
-    padding: 14,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 16,
-  },
-  modalSubmitText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 14 },
-  bottomBar: {
-    height: 65,
+  communityBannerBtnText: { color: "#00D4FF", fontSize: 11, fontWeight: "bold" },
+  summaryRow: { flexDirection: "row", marginHorizontal: 16, gap: 10 },
+  summaryCard: {
+    flex: 1,
     backgroundColor: "#141419",
-    borderTopWidth: 1,
-    borderTopColor: "#22222E",
-    flexDirection: "row",
-    justifyContent: "space-around",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#22222E",
     alignItems: "center",
   },
-  tabButton: { flex: 1, alignItems: "center", justifyContent: "center" },
-  tabIcon: { color: "#666677", fontSize: 22 },
-  tabText: { color: "#666677", fontSize: 10, marginTop: 3 },
+  summaryNumber: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
+  summaryLabel: { fontSize: 10, color: "#888899", marginTop: 4 },
+  eventCard: {
+    marginBottom: 10,
+    backgroundColor: "#1C1C26",
+    borderRadius: 12,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+    flexDirection: "row",
+    gap: 12,
+  },
+  eventIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: 10,
+    backgroundColor: "#2A121A",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  eventContent: { flex: 1 },
+  eventTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  eventTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold", flex: 1 },
+  eventPriority: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: "#FF0055" },
+  eventPriorityText: { fontSize: 8, fontWeight: "bold" },
+  eventDescription: { color: "#9999AA", fontSize: 11, marginTop: 3 },
+  eventAddress: { color: "#777788", fontSize: 10, marginTop: 5 },
+  eventTime: { color: "#555566", fontSize: 9, marginTop: 3 },
+  notifSectionLabel: { color: "#00D4FF", fontSize: 11, fontWeight: "bold", marginBottom: 8, marginTop: 4 },
+  profileHeader: { alignItems: "center", paddingVertical: 24, backgroundColor: "#141419", borderBottomWidth: 1, borderBottomColor: "#22222E" },
+  profileHeaderTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", marginBottom: 16 },
+  largeAvatar: { width: 74, height: 74, borderRadius: 37, backgroundColor: "#2A121A", borderWidth: 2, borderColor: "#FF0055", alignItems: "center", justifyContent: "center", marginBottom: 10 },
+  largeAvatarText: { color: "#FF0055", fontSize: 28, fontWeight: "bold" },
+  profileName: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
+  profileEmail: { color: "#888899", fontSize: 12, marginTop: 3 },
+  profileSection: { padding: 16 },
+  accessibilityCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#141419", padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#22222E", marginBottom: 10, gap: 12 },
+  accessibilitySelected: { borderColor: "#00FF66", backgroundColor: "#122A1A" },
+  accessibilityEmoji: { fontSize: 24 },
+  accessibilityTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "bold" },
+  accessibilitySubtitle: { color: "#888899", fontSize: 11, marginTop: 2 },
+  check: { color: "#00FF66", fontSize: 16, fontWeight: "bold" },
+  logoutFullBtn: { backgroundColor: "#2A121A", padding: 14, borderRadius: 12, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FF0055" },
+  logoutFullBtnText: { color: "#FF0055", fontWeight: "bold", fontSize: 13 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" },
+  modalCard: { backgroundColor: "#141419", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, borderWidth: 1, borderColor: "#22222E" },
+  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
+  modalTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
+  modalClose: { color: "#888899", fontSize: 18, fontWeight: "bold" },
+  modalLabel: { color: "#888899", fontSize: 10, fontWeight: "bold", marginBottom: 6, marginTop: 10 },
+  reportTypesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  typeChip: { backgroundColor: "#1C1C26", paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: "#2E2E3E" },
+  typeChipActive: { backgroundColor: "#12242A", borderColor: "#00D4FF" },
+  typeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "bold" },
+  modalInput: { backgroundColor: "#1C1C26", borderWidth: 1, borderColor: "#2E2E3E", borderRadius: 10, padding: 12, color: "#FFFFFF", fontSize: 13 },
+  lgpdText: { color: "#777788", fontSize: 10, marginTop: 12, lineHeight: 14 },
+  modalSubmitBtn: { backgroundColor: "#00D4FF", padding: 14, borderRadius: 10, alignItems: "center", marginTop: 16 },
+  modalSubmitText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 13 },
+  bottomBar: { height: 60, backgroundColor: "#141419", borderTopWidth: 1, borderTopColor: "#22222E", flexDirection: "row" },
+  tabButton: { flex: 1, justifyContent: "center", alignItems: "center" },
+  tabIcon: { fontSize: 20, color: "#666677" },
+  tabText: { fontSize: 10, color: "#666677", marginTop: 2 },
   activeTab: { color: "#FF0055", fontWeight: "bold" },
 });
