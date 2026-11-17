@@ -9,7 +9,8 @@ import {
   Alert,
 } from "react-native";
 import { UserRole } from "./LoginScreen";
-import { criarUsuario } from "../services/usuarioService"; // Ajuste o caminho se necessário
+import { criarUsuario } from "../services/usuarioService";
+import { criarLocalSeguro } from "../services/locaisSegurosService"; // Serviço responsável pelo POST em /locais-seguros
 
 interface RegisterScreenProps {
   role: UserRole;
@@ -45,7 +46,7 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
       setNovoLocalNome("");
       setNovoLocalEnd("");
     } else {
-      Alert.alert("Atenção", "Preencha o nome e o endereço do local.");
+      Alert.alert("Atenção", "Preencha o nome e o endereço do local seguro.");
     }
   }
 
@@ -55,18 +56,16 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
       return;
     }
 
-    // Mapeia o role para o tipoPerfil esperado pelo backend ("pcd", "contato", "admin")
     const tipoPerfilMapeado = role.toLowerCase();
 
-    const payload = {
+    const payloadUsuario = {
       nome: nome.trim(),
       email: email.trim().toLowerCase(),
-      senhaHash: "123456", // Senha padrão inicial para novos cadastros
+      senhaHash: "123456",
       tipoPerfil: tipoPerfilMapeado,
       telefone,
       deficiencia,
       enderecoCasa,
-      locaisSeguros,
       pcdVinculado,
       matricula,
       orgao,
@@ -75,14 +74,33 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
     try {
       setCarregando(true);
       
-      // Chamada para salvar no banco de dados através do seu service
-      await criarUsuario(payload);
+      // 1. Cria o usuário principal e captura o objeto retornado (contendo o ID gerado pelo banco)
+      const usuarioCriado = await criarUsuario(payloadUsuario);
+      const pcdIdGerado = usuarioCriado?.id;
 
-      Alert.alert("Sucesso", "Usuário cadastrado com sucesso no banco de dados!");
-      onCompleteRegister(role, payload);
+      if (!pcdIdGerado) {
+        throw new Error("O servidor não retornou o ID do usuário cadastrado.");
+      }
+
+      // 2. Se for PCD e houver locais seguros na lista, envia cada um para a rota /locais-seguros
+      if (role === "PCD" && locaisSeguros.length > 0) {
+        for (const local of locaisSeguros) {
+          const payloadLocalSeguro = {
+            pcd_id: pcdIdGerado,
+            nomeLocal: local.nome,
+            endereco: local.endereco,
+          };
+          
+          // Executa a requisição POST para salvar o local seguro na tabela correspondente
+          await criarLocalSeguro(payloadLocalSeguro);
+        }
+      }
+
+      Alert.alert("Sucesso", "Usuário e locais seguros cadastrados com sucesso no banco!");
+      onCompleteRegister(role, { ...payloadUsuario, id: pcdIdGerado });
     } catch (error) {
-      console.error("Erro ao salvar cadastro:", error);
-      Alert.alert("Erro", "Não foi possível salvar o usuário no servidor.");
+      console.error("Erro ao salvar cadastro ou locais seguros:", error);
+      Alert.alert("Erro", "Não foi possível salvar os dados no servidor. Verifique a conexão.");
     } finally {
       setCarregando(false);
     }
@@ -176,7 +194,7 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
                 onChangeText={setNovoLocalEnd}
               />
               <TouchableOpacity style={styles.addBtn} onPress={adicionarLocalSeguro}>
-                <Text style={styles.addBtnText}>+ Cadastrar Mais Locais</Text>
+                <Text style={styles.addBtnText}>+ Adicionar à Lista</Text>
               </TouchableOpacity>
 
               {locaisSeguros.map((loc, idx) => (

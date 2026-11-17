@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { listarChamadosSOS, criarChamadoSOS, deletarChamadoSOS } from "../services/chamadoSOSService";
 import { listarEventos, criarEvento } from "../services/eventoService";
+import { listarLocaisSeguros } from "../services/locaisSegurosService";
 import api from "../services/api";
 
 interface DashboardAdminProps {
@@ -28,35 +29,44 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
   // Estados dos dados do banco
   const [sosAtivos, setSosAtivos] = useState<any[]>([]);
   const [listaEventos, setListaEventos] = useState<any[]>([]);
+  const [abrigos, setAbrigos] = useState<any[]>([]);
 
   // Paginação da Fila SOS (5 itens por página)
   const [paginaSos, setPaginaSos] = useState(0);
   const ITENS_POR_PAGINA = 5;
-
-  // Gestão de Abrigos Públicos
-  const [abrigos, setAbrigos] = useState([
-    { id: 1, nome: "Estação Consolação (Metrô)", recurso: "Elevador OK", ocupacao: "45/100", status: "ABERTO" },
-    { id: 2, nome: "E.E. Rodrigues Alves", recurso: "Rampa OK", ocupacao: "80/80", status: "LOTADO" },
-    { id: 3, nome: "UBS Jardim Paulista", recurso: "Banheiro Adaptado", ocupacao: "12/40", status: "ABERTO" },
-  ]);
 
   // Estados do Formulário de Emitir Alerta / Chamado SOS
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novaRegiao, setNovaRegiao] = useState("");
   const [novaSeveridade, setNovaSeveridade] = useState<"CRÍTICO" | "ALTO" | "MÉDIO">("ALTO");
 
-  // Carrega os dados do banco ao abrir o painel
+  // Carrega os dados do banco ao abrir o painel (incluindo locais seguros)
   async function carregarDadosDoBanco() {
     try {
       setCarregando(true);
-      const [dadosSOS, dadosEvt] = await Promise.all([
+      const [dadosSOS, dadosEvt, dadosLocais] = await Promise.all([
         listarChamadosSOS(),
         listarEventos(),
+        listarLocaisSeguros(),
       ]);
       setSosAtivos(dadosSOS || []);
       setListaEventos(dadosEvt || []);
+
+      // Mapeia os locais seguros do banco para o formato da gestão de abrigos
+      if (dadosLocais && dadosLocais.length > 0) {
+        const locaisFormatados = dadosLocais.map((local: any, index: number) => ({
+          id: local.id || index + 1,
+          nome: local.nomeLocal || "Local Seguro",
+          recurso: local.endereco || "Endereço não informado",
+          status: index % 3 === 0 ? "LOTADO" : index % 2 === 0 ? "INACESSIVEL" : "ABERTO",
+        }));
+        setAbrigos(locaisFormatados);
+      } else {
+        setAbrigos([]);
+      }
     } catch (error) {
       console.error("Erro ao carregar dados do banco:", error);
+      setAbrigos([]);
     } finally {
       setCarregando(false);
     }
@@ -80,7 +90,6 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
       const novaLista = sosAtivos.filter((item) => item.id !== id);
       setSosAtivos(novaLista);
 
-      // Ajusta a página caso o último item da página atual tenha sido removido
       const totalPaginas = Math.ceil(novaLista.length / ITENS_POR_PAGINA);
       if (paginaSos >= totalPaginas && totalPaginas > 0) {
         setPaginaSos(totalPaginas - 1);
@@ -268,29 +277,41 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
               </View>
             )}
 
-            <Text style={[styles.sectionTitle, { marginTop: 25 }]}>🏢 Gestão de Abrigos Públicos Acessíveis</Text>
+            <View style={[styles.rowBetween, { marginTop: 25 }]}>
+              <Text style={styles.sectionTitle}>🏢 Gestão de Abrigos Públicos Acessíveis</Text>
+              <TouchableOpacity onPress={carregarDadosDoBanco}>
+                <Text style={{ color: "#00D4FF", fontSize: 11, fontWeight: "bold" }}>🔄 Atualizar</Text>
+              </TouchableOpacity>
+            </View>
             <Text style={styles.helperText}>Toque no status para alternar disponibilidade:</Text>
-            {abrigos.map((ab) => (
-              <View key={ab.id} style={styles.shelterCard}>
-                <View style={{ flex: 1 }}>
-                  <Text style={styles.shelterName}>{ab.nome}</Text>
-                  <Text style={styles.shelterSub}>
-                    {ab.recurso} • Ocupação: {ab.ocupacao}
-                  </Text>
-                </View>
-                <TouchableOpacity
-                  style={[
-                    styles.statusPill,
-                    ab.status === "ABERTO" && { backgroundColor: "#122A1A", borderColor: "#00FF66" },
-                    ab.status === "LOTADO" && { backgroundColor: "#2A2212", borderColor: "#F59E0B" },
-                    ab.status === "INACESSIVEL" && { backgroundColor: "#2A121A", borderColor: "#FF0055" },
-                  ]}
-                  onPress={() => alternarStatusAbrigo(ab.id)}
-                >
-                  <Text style={styles.statusPillText}>{ab.status}</Text>
-                </TouchableOpacity>
+
+            {abrigos.length === 0 ? (
+              <View style={styles.emptyCard}>
+                <Text style={styles.emptyText}>Sem locais seguros cadastrados</Text>
               </View>
-            ))}
+            ) : (
+              abrigos.map((ab) => (
+                <View key={ab.id} style={styles.shelterCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.shelterName}>{ab.nome}</Text>
+                    <Text style={styles.shelterSub}>
+                      📍 {ab.recurso}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    style={[
+                      styles.statusPill,
+                      ab.status === "ABERTO" && { backgroundColor: "#122A1A", borderColor: "#00FF66" },
+                      ab.status === "LOTADO" && { backgroundColor: "#2A2212", borderColor: "#F59E0B" },
+                      ab.status === "INACESSIVEL" && { backgroundColor: "#2A121A", borderColor: "#FF0055" },
+                    ]}
+                    onPress={() => alternarStatusAbrigo(ab.id)}
+                  >
+                    <Text style={styles.statusPillText}>{ab.status}</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            )}
           </>
         )}
 
@@ -497,6 +518,22 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#22222E",
     marginBottom: 12,
+  },
+  emptyCard: {
+    backgroundColor: "#141419",
+    borderRadius: 12,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#22222E",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 10,
+  },
+  emptyText: {
+    color: "#666677",
+    fontSize: 13,
+    fontWeight: "bold",
+    textAlign: "center",
   },
   paginacaoContainer: {
     flexDirection: "row",
