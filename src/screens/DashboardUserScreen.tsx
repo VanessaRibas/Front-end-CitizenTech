@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   View,
   Text,
@@ -9,13 +9,14 @@ import {
   ActivityIndicator,
   Alert,
   Modal,
+  Animated,
 } from "react-native";
 import Svg, { Path, Circle, Line, Rect, G } from "react-native-svg";
 
 import { EventoRisco } from "../interfaces/evento";
 import { listarEventos, criarEvento } from "../services/eventoService";
 import { listarAlertas } from "../services/alertaService";
-import { criarChamadoSOS } from "../services/chamadoSOSService";
+import { criarChamadoSOS, listarChamadosSOS } from "../services/chamadoSOSService";
 
 type PerfilPCD = "VISUAL" | "CADEIRANTE";
 type AbaUsuario = "INICIO" | "PERFIL";
@@ -121,8 +122,24 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   // Estados de Integração Backend Spring Boot
   const [eventos, setEventos] = useState<EventoRisco[]>([]);
   const [alertas, setAlertas] = useState<any[]>([]);
+  const [chamadoSosRecente, setChamadoSosRecente] = useState<any | null>(null);
+  const [mostrarAlertaExtremo, setMostrarAlertaExtremo] = useState<boolean>(false);
   const [carregando, setCarregando] = useState<boolean>(true);
   const [conectado, setConectado] = useState<boolean>(true);
+
+  // Animação de pulsação/piscar nas bordas estilo Alerta Civil
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    const loopAnim = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 0.25, duration: 600, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 600, useNativeDriver: true }),
+      ])
+    );
+    loopAnim.start();
+    return () => loopAnim.stop();
+  }, [pulseAnim]);
 
   // Estado do Modal do Sino de Notificações
   const [modalNotificacoesVisible, setModalNotificacoesVisible] = useState(false);
@@ -136,12 +153,29 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   async function carregarDadosDoBackend() {
     try {
       setCarregando(true);
-      const [dadosEventos, dadosAlertas] = await Promise.all([
+      const [dadosEventos, dadosAlertas, dadosSos] = await Promise.all([
         listarEventos(),
         listarAlertas(),
+        listarChamadosSOS(),
       ]);
       setEventos(dadosEventos || []);
       setAlertas(dadosAlertas || []);
+
+      // Pega o chamado SOS mais recente cadastrado
+      if (dadosSos && dadosSos.length > 0) {
+        const ordenados = [...dadosSos].sort((a, b) => {
+          const dataA = new Date(a.dataHora || 0).getTime();
+          const dataB = new Date(b.dataHora || 0).getTime();
+          if (dataB !== dataA) return dataB - dataA;
+          return (b.id || 0) - (a.id || 0);
+        });
+        setChamadoSosRecente(ordenados[0]);
+        setMostrarAlertaExtremo(true); // Abre automaticamente ao carregar
+      } else {
+        setChamadoSosRecente(null);
+        setMostrarAlertaExtremo(false);
+      }
+
       setConectado(true);
     } catch (error) {
       setConectado(false);
@@ -157,7 +191,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   const nomeUsuario = userData?.nome || "Vanessa";
   const pcdIdUsuario = userData?.id || 1;
   const mapaAtual = CONFIG_MAPAS[tipoRota];
-  const totalNotificacoes = eventos.length + alertas.length;
+  const totalNotificacoes = eventos.length + alertas.length + (chamadoSosRecente ? 1 : 0);
 
   function selecionarTipoRota(novaRota: TipoRota) {
     setTipoRota(novaRota);
@@ -175,9 +209,18 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
         longitude: -46.6333,
         status: "PENDENTE",
         dataHora: new Date().toISOString(),
+        titulo: "Alerta Extremo: Risco Imediato",
+        regiao: "Região Central / Perímetro Atual",
+        descricao: "Defesa Civil: Alerta de emergência ativado para sua zona de circulação. Busque abrigo imediato.",
       };
 
-      await criarChamadoSOS(novoSos);
+      const salvo = await criarChamadoSOS(novoSos);
+      if (salvo) {
+        setChamadoSosRecente(salvo);
+      } else {
+        setChamadoSosRecente(novoSos);
+      }
+      setMostrarAlertaExtremo(true);
 
       Alert.alert(
         "🚨 SOS EMERGÊNCIA ENVIADO",
@@ -252,6 +295,39 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
         </TouchableOpacity>
       </View>
 
+      {/* 🚨 POP-UP CENTRALIZADO NO TOPO DE TUDO (ESTILO ALERTA GOVERNAMENTAL COM BORDA PISCANDO) */}
+      {mostrarAlertaExtremo && chamadoSosRecente && (
+        <View style={styles.govOverlayModal}>
+          <Animated.View style={[styles.govAlertBox, { opacity: pulseAnim }]}>
+            <View style={styles.govAlertHeaderRow}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                <Text style={{ fontSize: 24 }}>⚠️</Text>
+                <Text style={styles.govAlertHeaderTitle}>Alerta extremo</Text>
+              </View>
+              <TouchableOpacity onPress={() => setMostrarAlertaExtremo(false)}>
+                <Text style={styles.govAlertClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+
+            <Text style={styles.govAlertBodyText}>
+              Defesa Civil: {chamadoSosRecente.titulo || "EMERGÊNCIA ATIVA"} - {chamadoSosRecente.descricao || `Área afetada: ${chamadoSosRecente.regiao || "Sua região atual"}. Siga as rotas de segurança recomendadas e busque abrigo imediato.`}
+            </Text>
+
+            <View style={styles.govAlertFooterRow}>
+              <Text style={styles.govAlertFooterTime}>
+                {chamadoSosRecente.dataHora ? new Date(chamadoSosRecente.dataHora.trim()).toLocaleTimeString() : "Agora"}
+              </Text>
+              <TouchableOpacity
+                style={styles.govAlertOkBtn}
+                onPress={() => setMostrarAlertaExtremo(false)}
+              >
+                <Text style={styles.govAlertOkText}>OK (1/1)</Text>
+              </TouchableOpacity>
+            </View>
+          </Animated.View>
+        </View>
+      )}
+
       {tela === "INICIO" ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           {/* CABEÇALHO COM O SINO DE NOTIFICAÇÃO */}
@@ -300,6 +376,21 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             <Text style={styles.welcomeTitle}>Olá, {nomeUsuario}! 👋</Text>
             <Text style={styles.welcomeSubtitle}>Vamos encontrar um caminho mais seguro?</Text>
           </View>
+
+          {/* BOTÃO PARA REEXIBIR O ALERTA GOVERNAMENTAL CASO FECHADO */}
+          {chamadoSosRecente && !mostrarAlertaExtremo && (
+            <TouchableOpacity
+              style={styles.reopenAlertBanner}
+              onPress={() => setMostrarAlertaExtremo(true)}
+            >
+              <Text style={{ fontSize: 18 }}>🚨</Text>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.reopenAlertTitle}>Alerta Extremo da Defesa Civil Ativo</Text>
+                <Text style={styles.reopenAlertSub}>Toque para visualizar aviso de segurança</Text>
+              </View>
+              <Text style={{ color: "#FF0055", fontWeight: "bold" }}>Exibir ➔</Text>
+            </TouchableOpacity>
+          )}
 
           {/* 4 TIPOS DE ROTAS ACESSÍVEIS */}
           <View style={styles.routeChipsRow}>
@@ -586,7 +677,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
         </ScrollView>
       )}
 
-      {/* MODAL DO SINO DE NOTIFICAÇÕES (EXIBE EVENTOS E ALERTAS) */}
+      {/* MODAL DO SINO DE NOTIFICAÇÕES */}
       <Modal
         visible={modalNotificacoesVisible}
         transparent
@@ -609,11 +700,37 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 </Text>
               ) : (
                 <>
+                  {chamadoSosRecente && (
+                    <>
+                      <Text style={[styles.notifSectionLabel, { color: "#FF0055" }]}>🚨 ÚLTIMO SOS / ALERTA EXTREMO</Text>
+                      <View style={[styles.eventCard, { borderColor: "#FF005544", backgroundColor: "#2A121A22" }]}>
+                        <View style={styles.eventIcon}>
+                          <Text style={{ fontSize: 21 }}>🚨</Text>
+                        </View>
+                        <View style={styles.eventContent}>
+                          <View style={styles.eventTitleRow}>
+                            <Text style={styles.eventTitle}>{chamadoSosRecente.titulo || `Chamado #${chamadoSosRecente.id}`}</Text>
+                            <View style={[styles.eventPriority, { backgroundColor: "#2A121A" }]}>
+                              <Text style={[styles.eventPriorityText, { color: "#FF0055" }]}>
+                                {chamadoSosRecente.nivelAcionamento || "CRÍTICO"}
+                              </Text>
+                            </View>
+                          </View>
+                          <Text style={styles.eventDescription}>{chamadoSosRecente.descricao || "Alerta oficial gerado em tempo real."}</Text>
+                          <Text style={styles.eventAddress}>📍 Região: {chamadoSosRecente.regiao || "Perímetro Atual"}</Text>
+                          <Text style={styles.eventTime}>
+                            Status: {chamadoSosRecente.status || "PENDENTE"} • {chamadoSosRecente.dataHora ? new Date(chamadoSosRecente.dataHora).toLocaleString() : ""}
+                          </Text>
+                        </View>
+                      </View>
+                    </>
+                  )}
+
                   {eventos.length > 0 && <Text style={styles.notifSectionLabel}>📋 EVENTOS</Text>}
                   {eventos.map((evento) => (
                     <View key={`evento-notif-${evento.id || Math.random()}`} style={styles.eventCard}>
                       <View style={styles.eventIcon}>
-                        <Text style={{ fontSize: 21 }}>{evento.tipo || "⚠️"}</Text>
+                        <Text style={{ fontSize: 21 }}>{"⚠️"}</Text>
                       </View>
                       <View style={styles.eventContent}>
                         <View style={styles.eventTitleRow}>
@@ -633,7 +750,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                     </View>
                   ))}
 
-                  {alertas.length > 0 && <Text style={[styles.notifSectionLabel, { marginTop: 15 }]}>🚨 ALERTAS </Text>}
+                  {alertas.length > 0 && <Text style={[styles.notifSectionLabel, { marginTop: 15 }]}>🚨 ALERTAS OFICIAIS</Text>}
                   {alertas.map((alerta, index) => (
                     <View key={`alerta-notif-${alerta.id || index}`} style={[styles.eventCard, { borderColor: "#00D4FF44" }]}>
                       <View style={[styles.eventIcon, { backgroundColor: "#12242A" }]}>
@@ -757,6 +874,103 @@ const styles = StyleSheet.create({
   },
   connectionText: { color: "#0B0B0E", fontSize: 10, fontWeight: "bold" },
   retryText: { color: "#0B0B0E", fontSize: 10, textDecorationLine: "underline", fontWeight: "bold" },
+
+  // ESTILOS DO POP-UP ESTILO ALERTA EXTREMO DA DEFESA CIVIL (NO TOPO DE TUDO)
+  govOverlayModal: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: "rgba(0, 0, 0, 0.75)",
+    zIndex: 9999,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 24,
+  },
+  govAlertBox: {
+    width: "100%",
+    maxWidth: 340,
+    backgroundColor: "#1E1E26",
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 2.5,
+    borderColor: "#FF0055",
+    shadowColor: "#FF0055",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 15,
+    elevation: 10,
+  },
+  govAlertHeaderRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 12,
+  },
+  govAlertHeaderTitle: {
+    color: "#FFFFFF",
+    fontSize: 18,
+    fontWeight: "bold",
+  },
+  govAlertClose: {
+    color: "#888899",
+    fontSize: 18,
+    fontWeight: "bold",
+    padding: 4,
+  },
+  govAlertBodyText: {
+    color: "#DDDDDD",
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: 20,
+  },
+  govAlertFooterRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    borderTopWidth: 1,
+    borderTopColor: "#2E2E3E",
+    paddingTop: 12,
+  },
+  govAlertFooterTime: {
+    color: "#888899",
+    fontSize: 11,
+  },
+  govAlertOkBtn: {
+    backgroundColor: "#FF0055",
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 8,
+  },
+  govAlertOkText: {
+    color: "#FFFFFF",
+    fontWeight: "bold",
+    fontSize: 12,
+  },
+
+  reopenAlertBanner: {
+    marginHorizontal: 16,
+    marginBottom: 16,
+    backgroundColor: "#2A121A",
+    borderWidth: 1,
+    borderColor: "#FF0055",
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  reopenAlertTitle: {
+    color: "#FFFFFF",
+    fontSize: 13,
+    fontWeight: "bold",
+  },
+  reopenAlertSub: {
+    color: "#AAAAAA",
+    fontSize: 10,
+    marginTop: 2,
+  },
+
   scrollContent: { paddingBottom: 20 },
   header: {
     backgroundColor: "#141419",
