@@ -9,42 +9,25 @@ import {
   Alert,
   ActivityIndicator,
 } from "react-native";
+import { listarChamadosSOS, criarChamadoSOS, deletarChamadoSOS } from "../services/chamadoSOSService";
 import { listarEventos, criarEvento } from "../services/eventoService";
-import api from "../services/api"; // Certifique-se que o caminho do api está correto
+import api from "../services/api";
 
 interface DashboardAdminProps {
   userData?: any;
   onLogout: () => void;
 }
 
-type AbaAdmin = "OPERACOES" | "ALERTAS" | "EMITIR" | "PERFIL";
+type AbaAdmin = "OPERACOES" | "EVENTOS" | "EMITIR" | "PERFIL";
 
 export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps) {
   const [aba, setAba] = useState<AbaAdmin>("OPERACOES");
   const [emPlantao, setEmPlantao] = useState(true);
   const [carregando, setCarregando] = useState(false);
 
-  // Fila de Chamados SOS
-  const [sosAtivos, setSosAtivos] = useState([
-    {
-      id: 1,
-      nome: "Lucas Almeida",
-      idade: "29 anos",
-      tipo: "Cadeirante (Mobilidade Reduzida)",
-      local: "Av. Paulista, 1578 (Trianon)",
-      situacao: "Ilhado por enxurrada / alagamento severo",
-      despachado: false,
-    },
-    {
-      id: 2,
-      nome: "Beatriz Souza",
-      idade: "34 anos",
-      tipo: "Deficiência Visual Total",
-      local: "Rua Augusta, 900 - Consolação",
-      situacao: "Sem resposta ao Check-in de Segurança (3 min)",
-      despachado: false,
-    },
-  ]);
+  // Estados dos dados do banco
+  const [sosAtivos, setSosAtivos] = useState<any[]>([]);
+  const [listaEventos, setListaEventos] = useState<any[]>([]);
 
   // Gestão de Abrigos Públicos
   const [abrigos, setAbrigos] = useState([
@@ -53,35 +36,50 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
     { id: 3, nome: "UBS Jardim Paulista", recurso: "Banheiro Adaptado", ocupacao: "12/40", status: "ABERTO" },
   ]);
 
-  // Lista de Alertas / Eventos vindos do Banco de Dados
-  const [todosAlertas, setTodosAlertas] = useState<any[]>([]);
-
-  // Estados do Formulário de Novo Alerta Oficial
+  // Estados do Formulário de Emitir Alerta / Chamado SOS
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novaRegiao, setNovaRegiao] = useState("");
   const [novaSeveridade, setNovaSeveridade] = useState<"CRÍTICO" | "ALTO" | "MÉDIO">("ALTO");
 
-  // Carrega os eventos/alertas do banco ao abrir o painel
-  async function carregarEventosDoBanco() {
+  // Carrega os dados do banco ao abrir o painel
+  async function carregarDadosDoBanco() {
     try {
       setCarregando(true);
-      const dados = await listarEventos();
-      // Mapeia os dados do evento para o formato de alerta do painel, se necessário
-      setTodosAlertas(dados || []);
+      const [dadosSOS, dadosEvt] = await Promise.all([
+        listarChamadosSOS(),
+        listarEventos(),
+      ]);
+      setSosAtivos(dadosSOS || []);
+      setListaEventos(dadosEvt || []);
     } catch (error) {
-      console.error("Erro ao carregar eventos:", error);
+      console.error("Erro ao carregar dados do banco:", error);
     } finally {
       setCarregando(false);
     }
   }
 
   useEffect(() => {
-    carregarEventosDoBanco();
+    carregarDadosDoBanco();
   }, []);
 
-  function despacharViatura(id: number, nome: string) {
-    setSosAtivos(sosAtivos.map((item) => (item.id === id ? { ...item, despachado: true } : item)));
-    Alert.alert("🚒 Viatura Despachada", `Equipe adaptada enviada para resgatar ${nome}!`);
+  // Despacha a viatura pegando o ID exato, deleta do banco via service e remove da tela
+  async function despacharViatura(id: number) {
+    if (!id) {
+      Alert.alert("Erro", "ID do chamado SOS inválido.");
+      return;
+    }
+
+    try {
+      setCarregando(true);
+      await deletarChamadoSOS(id);
+      setSosAtivos((prevSos) => prevSos.filter((item) => item.id !== id));
+      Alert.alert("🚒 Viatura Despachada", `O chamado SOS #${id} foi atendido e excluído do banco de dados!`);
+    } catch (error) {
+      console.error("Erro ao despachar e deletar chamado SOS:", error);
+      Alert.alert("Erro", "Não foi possível remover o chamado SOS do servidor.");
+    } finally {
+      setCarregando(false);
+    }
   }
 
   function alternarStatusAbrigo(id: number) {
@@ -95,67 +93,63 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
     );
   }
 
-  // Função para validar (Confirmar ou Negar/Deletar do Banco)
-  async function validarAlerta(id: any, aprovar: boolean) {
+  // Auditoria e Validação de Eventos
+  async function validarEvento(id: any, aprovar: boolean) {
     try {
       if (aprovar) {
-        // Atualiza status para confirmado no backend ou estado local
-        setTodosAlertas(
-          todosAlertas.map((al) =>
-            al.id === id ? { ...al, confianca: 100, status: "CONFIRMADO" } : al
+        setListaEventos(
+          listaEventos.map((ev) =>
+            ev.id === id ? { ...ev, status: "CONFIRMADO", nivelConfianca: "100%" } : ev
           )
         );
-        Alert.alert("✅ Alerta Confirmado", "Confiança elevada para 100% e publicado no mapa.");
+        Alert.alert("✅ Evento Confirmado", "Status atualizado para confirmado.");
       } else {
-        // SE NEGADO: Deleta o evento/alerta diretamente do banco de dados
         await api.delete(`/eventos/${id}`);
-
-        // Remove da lista local
-        setTodosAlertas(todosAlertas.filter((al) => al.id !== id));
-        Alert.alert("🗑️ Descartado e Deletado", "Registro removido permanentemente do banco de dados.");
+        setListaEventos(listaEventos.filter((ev) => ev.id !== id));
+        Alert.alert("🗑️ Negado e Deletado", "Evento removido permanentemente da tabela eventos.");
       }
     } catch (error) {
       console.error("Erro ao processar auditoria do evento:", error);
-      Alert.alert("Erro", "Não foi possível atualizar o registro no servidor.");
+      Alert.alert("Erro", "Não foi possível atualizar o evento no servidor.");
     }
   }
 
-  // Emite novo alerta e salva como Evento no banco de dados
+  // Emitir Alerta Oficial salvando diretamente como um Chamado SOS no banco
   async function emitirAlertaOficial() {
     if (!novoTitulo.trim() || !novaRegiao.trim()) {
       Alert.alert("Atenção", "Preencha o título e a região afetada.");
       return;
     }
 
-    const novoEvento = {
+    const novoChamadoSos = {
+      pcdId: userData?.id || 1,
+      agenteId: userData?.id || 1,
+      nivelAcionamento: novaSeveridade,
+      latitude: -23.5505,
+      longitude: -46.6333,
+      status: "PENDENTE",
+      dataHora: new Date().toISOString(),
       titulo: novoTitulo,
-      descricao: `Severidade: ${novaSeveridade} - Região: ${novaRegiao}`,
-      endereco: novaRegiao,
-      tipo: "ALERTA_OFICIAL",
-      origemDado: `Oficial (${userData?.orgao || "Defesa Civil"})`,
-      nivelConfianca: "100%",
-      nivelPrioridade: novaSeveridade,
-      status: "CONFIRMADO",
+      regiao: novaRegiao,
     };
 
     try {
       setCarregando(true);
-      const salvoNoBanco = await criarEvento(novoEvento);
+      const salvoNoBanco = await criarChamadoSOS(novoChamadoSos);
       
       if (salvoNoBanco) {
-        setTodosAlertas([salvoNoBanco, ...todosAlertas]);
+        setSosAtivos([salvoNoBanco, ...sosAtivos]);
       } else {
-        // Fallback caso a API retorne vazio mas execute com sucesso
-        setTodosAlertas([novoEvento, ...todosAlertas]);
+        setSosAtivos([novoChamadoSos, ...sosAtivos]);
       }
 
       setNovoTitulo("");
       setNovaRegiao("");
-      setAba("ALERTAS");
-      Alert.alert("📢 Alerta Disparado", "Notificação oficial salva no banco e enviada aos usuários!");
+      setAba("OPERACOES");
+      Alert.alert("📢 Chamado SOS Emitido", "Salvo com sucesso na tabela chamadosSOS!");
     } catch (error) {
-      console.error("Erro ao emitir alerta:", error);
-      Alert.alert("Erro", "Falha ao salvar alerta oficial no servidor.");
+      console.error("Erro ao emitir chamado SOS:", error);
+      Alert.alert("Erro", "Falha ao salvar chamado SOS no servidor.");
     } finally {
       setCarregando(false);
     }
@@ -177,13 +171,11 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
         </View>
         <View style={styles.kpiRow}>
           <View style={styles.kpiBox}>
-            <Text style={styles.kpiNumber}>
-              {sosAtivos.filter((s) => !s.despachado).length}
-            </Text>
+            <Text style={styles.kpiNumber}>{sosAtivos.length}</Text>
             <Text style={styles.kpiLabel}>SOS</Text>
           </View>
           <View style={[styles.kpiBox, { borderColor: "#00D4FF" }]}>
-            <Text style={[styles.kpiNumber, { color: "#00D4FF" }]}>{todosAlertas.length}</Text>
+            <Text style={[styles.kpiNumber, { color: "#00D4FF" }]}>{listaEventos.length}</Text>
             <Text style={styles.kpiLabel}>Eventos</Text>
           </View>
         </View>
@@ -191,35 +183,41 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
 
       {/* CONTEÚDO DAS ABAS */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ABA 1: OPERAÇÕES (SOS + ABRIGOS) */}
+        {/* ABA 1: OPERAÇÕES (CHAMADOS SOS + ABRIGOS) */}
         {aba === "OPERACOES" && (
           <>
-            <Text style={styles.sectionTitle}>🚨 Chamados Críticos (Resgate Prioritário PCD)</Text>
-            {sosAtivos.map((sos) => (
-              <View key={sos.id} style={[styles.card, sos.despachado && { opacity: 0.7 }]}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.cardTitle}>
-                    {sos.nome} ({sos.idade})
-                  </Text>
-                  <Text style={styles.badgeRed}>PRIORIDADE ZERO</Text>
+            <View style={[styles.rowBetween, { marginTop: 10 }]}>
+              <Text style={styles.sectionTitle}>Fila de Chamados SOS Ativos ({sosAtivos.length})</Text>
+              {carregando && <ActivityIndicator size="small" color="#00FF66" />}
+            </View>
+
+            {sosAtivos.length === 0 ? (
+              <Text style={{ color: "#666677", textAlign: "center", marginTop: 15, marginBottom: 15 }}>
+                Nenhum chamado SOS registrado na tabela chamadosSOS.
+              </Text>
+            ) : (
+              sosAtivos.map((sos) => (
+                <View key={`sos-${sos.id}`} style={styles.card}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.cardTitle}>Chamado #{sos.id} • PCD ID: {sos.pcdId}</Text>
+                    <Text style={styles.badgeRed}>{sos.nivelAcionamento}</Text>
+                  </View>
+                  <Text style={styles.specText}>📡 Status: {sos.status}</Text>
+                  <Text style={styles.infoText}>📍 Coordenadas: {sos.latitude}, {sos.longitude}</Text>
+                  <Text style={styles.infoText}>🕒 Horário: {sos.dataHora ? new Date(sos.dataHora).toLocaleString() : "N/A"}</Text>
+
+                  <TouchableOpacity
+                    style={styles.actionBtn}
+                    disabled={carregando}
+                    onPress={() => despacharViatura(sos.id)}
+                  >
+                    <Text style={styles.actionBtnText}>🚒 Despachar Viatura & Deletar SOS</Text>
+                  </TouchableOpacity>
                 </View>
-                <Text style={styles.specText}>♿ {sos.tipo}</Text>
-                <Text style={styles.infoText}>📍 {sos.local}</Text>
-                <Text style={styles.infoText}>⚠️ {sos.situacao}</Text>
+              ))
+            )}
 
-                <TouchableOpacity
-                  style={[styles.actionBtn, sos.despachado && styles.btnDone]}
-                  disabled={sos.despachado}
-                  onPress={() => despacharViatura(sos.id, sos.nome)}
-                >
-                  <Text style={styles.actionBtnText}>
-                    {sos.despachado ? "✅ Viatura Adaptada a Caminho" : "🚒 Despachar Viatura Adaptada"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            ))}
-
-            <Text style={styles.sectionTitle}>🏢 Gestão de Abrigos Públicos Acessíveis</Text>
+            <Text style={[styles.sectionTitle, { marginTop: 25 }]}>🏢 Gestão de Abrigos Públicos Acessíveis</Text>
             <Text style={styles.helperText}>Toque no status para alternar disponibilidade:</Text>
             {abrigos.map((ab) => (
               <View key={ab.id} style={styles.shelterCard}>
@@ -245,74 +243,71 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
           </>
         )}
 
-        {/* ABA 2: EVENTOS, ALERTAS E AUDITORIA */}
-        {aba === "ALERTAS" && (
+        {/* ABA 2: EVENTOS */}
+        {aba === "EVENTOS" && (
           <>
             <View style={styles.rowBetween}>
-              <Text style={styles.sectionTitle}>📋 Eventos & Auditoria ({todosAlertas.length})</Text>
+              <Text style={styles.sectionTitle}>📋 Gestão de Eventos & Auditoria ({listaEventos.length})</Text>
               {carregando && <ActivityIndicator size="small" color="#00FF66" />}
             </View>
 
-            {todosAlertas.length === 0 ? (
+            {listaEventos.length === 0 ? (
               <Text style={{ color: "#666677", textAlign: "center", marginTop: 20 }}>
                 Nenhum evento registrado no banco.
               </Text>
             ) : (
-              todosAlertas.map((al, index) => (
-                <View key={`alerta-${al.id || index}`} style={styles.card}>
+              listaEventos.map((ev, index) => (
+                <View key={`evento-${ev.id || index}`} style={styles.card}>
                   <View style={styles.rowBetween}>
                     <Text
                       style={[
                         styles.badgeStatus,
-                        (al.status === "CONFIRMADO" || al.nivelConfianca === "100%") ? styles.badgeGreen : styles.badgeAmber,
+                        (ev.status === "CONFIRMADO" || ev.nivelConfianca === "100%") ? styles.badgeGreen : styles.badgeAmber,
                       ]}
                     >
-                      {(al.status === "CONFIRMADO" || al.nivelConfianca === "100%") ? "✔ CONFIRMADO" : "⏳ EM VALIDAÇÃO"}
+                      {(ev.status === "CONFIRMADO" || ev.nivelConfianca === "100%") ? "✔ CONFIRMADO" : "⏳ EM VALIDAÇÃO"}
                     </Text>
-                    <Text style={styles.badgeCyan}>Confiança: {al.nivelConfianca || `${al.confianca}%`}</Text>
+                    <Text style={styles.badgeCyan}>Confiança: {ev.nivelConfianca || "100%"}</Text>
                   </View>
 
-                  <Text style={styles.cardTitle}>{al.titulo}</Text>
-                  <Text style={styles.infoText}>📍 Região: {al.endereco || al.local}</Text>
-                  <Text style={styles.infoText}>📡 Origem: {al.origemDado || al.origem} | Severidade: {al.nivelPrioridade || al.severidade}</Text>
-                  <Text style={styles.infoText}>📝 {al.descricao}</Text>
+                  <Text style={styles.cardTitle}>{ev.titulo}</Text>
+                  <Text style={styles.infoText}>📍 Endereço / Local: {ev.endereco || ev.local}</Text>
+                  <Text style={styles.infoText}>📡 Origem: {ev.origemDado || "Defesa Civil"} | Severidade: {ev.nivelPrioridade || "ALTO"}</Text>
+                  <Text style={styles.infoText}>📝 {ev.descricao}</Text>
 
-                  {/* Ações de Auditoria: Se negado, deleta do banco */}
-                  <div style={{ display: 'flex' }}>
-                    <View style={styles.valActionsRow}>
-                      <TouchableOpacity
-                        style={[styles.valBtn, { backgroundColor: "#00FF66" }]}
-                        onPress={() => validarAlerta(al.id, true)}
-                      >
-                        <Text style={{ color: "#0B0B0E", fontWeight: "bold", fontSize: 12 }}>
-                          ✅ Confirmar
-                        </Text>
-                      </TouchableOpacity>
-                      <TouchableOpacity
-                        style={[styles.valBtn, { backgroundColor: "#2A121A", borderWidth: 1, borderColor: "#FF0055" }]}
-                        onPress={() => validarAlerta(al.id, false)}
-                      >
-                        <Text style={{ color: "#FF0055", fontWeight: "bold", fontSize: 12 }}>
-                          ✕ Negar / Deletar
-                        </Text>
-                      </TouchableOpacity>
-                    </View>
-                  </div>
+                  <View style={styles.valActionsRow}>
+                    <TouchableOpacity
+                      style={[styles.valBtn, { backgroundColor: "#00FF66" }]}
+                      onPress={() => validarEvento(ev.id, true)}
+                    >
+                      <Text style={{ color: "#0B0B0E", fontWeight: "bold", fontSize: 12 }}>
+                        ✅ Confirmar
+                      </Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[styles.valBtn, { backgroundColor: "#2A121A", borderWidth: 1, borderColor: "#FF0055" }]}
+                      onPress={() => validarEvento(ev.id, false)}
+                    >
+                      <Text style={{ color: "#FF0055", fontWeight: "bold", fontSize: 12 }}>
+                        ✕ Negar / Deletar
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))
             )}
           </>
         )}
 
-        {/* ABA 3: EMITIR ALERTA OFICIAL (SALVA COMO EVENTO NO BANCO) */}
+        {/* ABA 3: EMITIR */}
         {aba === "EMITIR" && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>📢 Emitir Alerta Oficial (Salvar Evento)</Text>
+            <Text style={styles.sectionTitle}>📢 Emitir Chamado SOS (Salvar em chamadosSOS)</Text>
             <Text style={styles.helperText}>
-              Alertas oficiais salvam diretamente na tabela de eventos do banco de dados.
+              Emitir um chamado oficial registrará os dados diretamente na tabela de chamados SOS do backend.
             </Text>
 
-            <Text style={styles.inputLabel}>NÍVEL DE SEVERIDADE</Text>
+            <Text style={styles.inputLabel}>NÍVEL DE SEVERIDADE / ACIONAMENTO</Text>
             <View style={styles.rowGap}>
               {(["CRÍTICO", "ALTO", "MÉDIO"] as const).map((niv) => (
                 <TouchableOpacity
@@ -325,7 +320,7 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
               ))}
             </View>
 
-            <Text style={styles.inputLabel}>TÍTULO DA OCORRÊNCIA</Text>
+            <Text style={styles.inputLabel}>TÍTULO DO CHAMADO</Text>
             <TextInput
               style={styles.input}
               placeholder="Ex: Alagamento Severo / Queda de Árvore"
@@ -349,7 +344,7 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
               disabled={carregando}
             >
               <Text style={styles.emitBtnText}>
-                {carregando ? "Salvando no Banco..." : "🚨 Disparar e Salvar Evento"}
+                {carregando ? "Salvando no Banco..." : "🚨 Disparar e Salvar Chamado SOS"}
               </Text>
             </TouchableOpacity>
           </View>
@@ -395,9 +390,9 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
           <Text style={[styles.tabText, aba === "OPERACOES" && styles.tabActive]}>Operações</Text>
         </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("ALERTAS")}>
-          <Text style={[styles.tabIcon, aba === "ALERTAS" && styles.tabActive]}>📋</Text>
-          <Text style={[styles.tabText, aba === "ALERTAS" && styles.tabActive]}>Eventos</Text>
+        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EVENTOS")}>
+          <Text style={[styles.tabIcon, aba === "EVENTOS" && styles.tabActive]}>📋</Text>
+          <Text style={[styles.tabText, aba === "EVENTOS" && styles.tabActive]}>Eventos</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EMITIR")}>
@@ -484,7 +479,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 6,
   },
-  btnDone: { backgroundColor: "#1C1C26", borderWidth: 1, borderColor: "#00FF66" },
   actionBtnText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 12 },
   shelterCard: {
     backgroundColor: "#141419",
