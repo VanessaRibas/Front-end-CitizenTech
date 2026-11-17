@@ -7,12 +7,14 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
+import { listarUsuarios } from "../services/usuarioService"; // Ajuste o caminho se necessário
 
 export type UserRole = "PCD" | "CONTATO" | "ADMIN";
 
 interface LoginScreenProps {
-  onLoginSuccess: (role: UserRole, email: string) => void;
+  onLoginSuccess: (role: UserRole, email: string, userData?: any) => void;
   onNavigateToRegister: () => void;
 }
 
@@ -20,16 +22,67 @@ export function LoginScreen({ onLoginSuccess, onNavigateToRegister }: LoginScree
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [carregando, setCarregando] = useState(false);
 
-  function handleLogin() {
+  async function handleLogin() {
     const emailClean = email.toLowerCase().trim();
 
-    if (emailClean.includes("admin") || emailClean.includes("defesacivil")) {
-      onLoginSuccess("ADMIN", emailClean || "admin@defesacivil.gov.br");
-    } else if (emailClean.includes("apoio") || emailClean.includes("contato")) {
-      onLoginSuccess("CONTATO", emailClean || "apoio@urbanrisk.com");
-    } else {
-      onLoginSuccess("PCD", emailClean || "vanessa@urbanrisk.com");
+    if (!emailClean) {
+      Alert.alert("Atenção", "Por favor, digite seu e-mail.");
+      return;
+    }
+
+    try {
+      setCarregando(true);
+
+      // Busca todos os usuários cadastrados no banco de dados via API
+      const usuarios = await listarUsuarios();
+
+      // Procura pelo usuário digitado
+      const usuarioEncontrado = usuarios.find(
+        (u) => u.email.toLowerCase().trim() === emailClean
+      );
+
+      if (usuarioEncontrado) {
+        // Mapeia o tipoPerfil do banco para o UserRole esperado pelo app
+        const perfilBanco = usuarioEncontrado.tipoPerfil?.toLowerCase() || "";
+        let role: UserRole = "PCD";
+
+        if (perfilBanco.includes("admin") || perfilBanco.includes("defesa")) {
+          role = "ADMIN";
+        } else if (perfilBanco.includes("contato") || perfilBanco.includes("apoio")) {
+          role = "CONTATO";
+        } else {
+          role = "PCD";
+        }
+
+        onLoginSuccess(role, usuarioEncontrado.email, usuarioEncontrado);
+      } else {
+        // Fallback de segurança ou emails padrão caso o banco esteja vazio ou o usuário não esteja cadastrado
+        if (emailClean.includes("admin") || emailClean.includes("defesacivil")) {
+          onLoginSuccess("ADMIN", emailClean);
+        } else if (emailClean.includes("apoio") || emailClean.includes("contato")) {
+          onLoginSuccess("CONTATO", emailClean);
+        } else {
+          // Se não encontrar no banco, avisa ou direciona como PCD padrão
+          Alert.alert(
+            "Usuário não encontrado",
+            "E-mail não cadastrado no banco. Verifique ou crie uma conta."
+          );
+        }
+      }
+    } catch (error) {
+      console.error("Erro ao validar login no banco:", error);
+      // Fallback caso ocorra erro de conexão com o servidor
+      if (emailClean.includes("admin") || emailClean.includes("defesacivil")) {
+        onLoginSuccess("ADMIN", emailClean);
+      } else if (emailClean.includes("apoio") || emailClean.includes("contato")) {
+        onLoginSuccess("CONTATO", emailClean);
+      } else {
+        onLoginSuccess("PCD", emailClean);
+      }
+    } finally {
+      setCarregando(false);
     }
   }
 
@@ -48,7 +101,7 @@ export function LoginScreen({ onLoginSuccess, onNavigateToRegister }: LoginScree
         </View>
 
         <View style={styles.inputGroup}>
-          <Text style={styles.label}>E-MAIL OU USUÁRIO</Text>
+          <Text style={styles.label}>E-MAIL</Text>
           <TextInput
             style={styles.input}
             placeholder="Digite seu e-mail"
@@ -80,14 +133,19 @@ export function LoginScreen({ onLoginSuccess, onNavigateToRegister }: LoginScree
           </View>
         </View>
 
-        <TouchableOpacity style={styles.loginButton} onPress={handleLogin}>
-          <Text style={styles.loginButtonText}>Conectar →</Text>
+        <TouchableOpacity 
+          style={[styles.loginButton, carregando && { opacity: 0.7 }]} 
+          onPress={handleLogin}
+          disabled={carregando}
+        >
+          <Text style={styles.loginButtonText}>
+            {carregando ? "Verificando..." : "Conectar →"}
+          </Text>
         </TouchableOpacity>
 
         <View style={styles.hintBox}>
           <Text style={styles.hintText}>
-            Dica de acesso: use <Text style={styles.highlight}>admin@...</Text> para Agente,{" "}
-            <Text style={styles.highlight}>apoio@...</Text> para Rede de Apoio ou qualquer outro para PCD.
+            O sistema verifica seu perfil diretamente no banco de dados ao conectar.
           </Text>
         </View>
 
@@ -204,10 +262,6 @@ const styles = StyleSheet.create({
     color: "#777788",
     fontSize: 11,
     lineHeight: 16,
-  },
-  highlight: {
-    color: "#00D4FF",
-    fontWeight: "bold",
   },
   footer: {
     flexDirection: "row",

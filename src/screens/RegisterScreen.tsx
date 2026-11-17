@@ -9,6 +9,7 @@ import {
   Alert,
 } from "react-native";
 import { UserRole } from "./LoginScreen";
+import { criarUsuario } from "../services/usuarioService"; // Ajuste o caminho se necessário
 
 interface RegisterScreenProps {
   role: UserRole;
@@ -35,6 +36,9 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
   const [matricula, setMatricula] = useState("");
   const [orgao, setOrgao] = useState("Defesa Civil");
 
+  // Estado de carregamento da requisição
+  const [carregando, setCarregando] = useState(false);
+
   function adicionarLocalSeguro() {
     if (novoLocalNome.trim() && novoLocalEnd.trim()) {
       setLocaisSeguros([...locaisSeguros, { nome: novoLocalNome, endereco: novoLocalEnd }]);
@@ -45,15 +49,20 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
     }
   }
 
-  function handleSubmit() {
-    if (!nome.trim()) {
-      Alert.alert("Campo obrigatório", "Por favor, informe seu nome.");
+  async function handleSubmit() {
+    if (!nome.trim() || !email.trim()) {
+      Alert.alert("Campos obrigatórios", "Por favor, informe seu nome e e-mail.");
       return;
     }
 
+    // Mapeia o role para o tipoPerfil esperado pelo backend ("pcd", "contato", "admin")
+    const tipoPerfilMapeado = role.toLowerCase();
+
     const payload = {
-      nome,
-      email,
+      nome: nome.trim(),
+      email: email.trim().toLowerCase(),
+      senhaHash: "123456", // Senha padrão inicial para novos cadastros
+      tipoPerfil: tipoPerfilMapeado,
       telefone,
       deficiencia,
       enderecoCasa,
@@ -63,7 +72,20 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
       orgao,
     };
 
-    onCompleteRegister(role, payload);
+    try {
+      setCarregando(true);
+      
+      // Chamada para salvar no banco de dados através do seu service
+      await criarUsuario(payload);
+
+      Alert.alert("Sucesso", "Usuário cadastrado com sucesso no banco de dados!");
+      onCompleteRegister(role, payload);
+    } catch (error) {
+      console.error("Erro ao salvar cadastro:", error);
+      Alert.alert("Erro", "Não foi possível salvar o usuário no servidor.");
+    } finally {
+      setCarregando(false);
+    }
   }
 
   return (
@@ -203,8 +225,14 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
           </View>
         )}
 
-        <TouchableOpacity style={styles.submitBtn} onPress={handleSubmit}>
-          <Text style={styles.submitBtnText}>Finalizar Cadastro →</Text>
+        <TouchableOpacity 
+          style={[styles.submitBtn, carregando && { opacity: 0.7 }]} 
+          onPress={handleSubmit}
+          disabled={carregando}
+        >
+          <Text style={styles.submitBtnText}>
+            {carregando ? "Salvando no Banco..." : "Finalizar Cadastro →"}
+          </Text>
         </TouchableOpacity>
       </View>
     </ScrollView>
