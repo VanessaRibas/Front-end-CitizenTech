@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -7,7 +7,10 @@ import {
   ScrollView,
   TextInput,
   Alert,
+  ActivityIndicator,
 } from "react-native";
+import { listarEventos, criarEvento } from "../services/eventoService";
+import api from "../services/api"; // Certifique-se que o caminho do api está correto
 
 interface DashboardAdminProps {
   userData?: any;
@@ -19,6 +22,7 @@ type AbaAdmin = "OPERACOES" | "ALERTAS" | "EMITIR" | "PERFIL";
 export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps) {
   const [aba, setAba] = useState<AbaAdmin>("OPERACOES");
   const [emPlantao, setEmPlantao] = useState(true);
+  const [carregando, setCarregando] = useState(false);
 
   // Fila de Chamados SOS
   const [sosAtivos, setSosAtivos] = useState([
@@ -49,41 +53,31 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
     { id: 3, nome: "UBS Jardim Paulista", recurso: "Banheiro Adaptado", ocupacao: "12/40", status: "ABERTO" },
   ]);
 
-  // Lista Completa de Alertas (Oficiais + Comunitários)
-  const [todosAlertas, setTodosAlertas] = useState([
-    {
-      id: 101,
-      titulo: "Alagamento Intransitável - Av. Paulista",
-      local: "Altura do nº 1500",
-      origem: "Sensor IoT #402 / Defesa Civil",
-      confianca: 100,
-      severidade: "CRÍTICO",
-      status: "CONFIRMADO",
-    },
-    {
-      id: 102,
-      titulo: "Rampa obstruída por galhos",
-      local: "Rua Augusta x Oscar Freire",
-      origem: "Comunidade (1 relato)",
-      confianca: 40,
-      severidade: "MÉDIO",
-      status: "EM_VALIDACAO",
-    },
-    {
-      id: 103,
-      titulo: "Chuva forte e granizo",
-      local: "Bela Vista / Brigadeiro",
-      origem: "Comunidade (4 relatos)",
-      confianca: 75,
-      severidade: "ALTO",
-      status: "EM_VALIDACAO",
-    },
-  ]);
+  // Lista de Alertas / Eventos vindos do Banco de Dados
+  const [todosAlertas, setTodosAlertas] = useState<any[]>([]);
 
   // Estados do Formulário de Novo Alerta Oficial
   const [novoTitulo, setNovoTitulo] = useState("");
   const [novaRegiao, setNovaRegiao] = useState("");
   const [novaSeveridade, setNovaSeveridade] = useState<"CRÍTICO" | "ALTO" | "MÉDIO">("ALTO");
+
+  // Carrega os eventos/alertas do banco ao abrir o painel
+  async function carregarEventosDoBanco() {
+    try {
+      setCarregando(true);
+      const dados = await listarEventos();
+      // Mapeia os dados do evento para o formato de alerta do painel, se necessário
+      setTodosAlertas(dados || []);
+    } catch (error) {
+      console.error("Erro ao carregar eventos:", error);
+    } finally {
+      setCarregando(false);
+    }
+  }
+
+  useEffect(() => {
+    carregarEventosDoBanco();
+  }, []);
 
   function despacharViatura(id: number, nome: string) {
     setSosAtivos(sosAtivos.map((item) => (item.id === id ? { ...item, despachado: true } : item)));
@@ -101,41 +95,70 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
     );
   }
 
-  function validarAlerta(id: number, aprovar: boolean) {
-    if (aprovar) {
-      setTodosAlertas(
-        todosAlertas.map((al) =>
-          al.id === id ? { ...al, confianca: 100, status: "CONFIRMADO" } : al
-        )
-      );
-      Alert.alert("✅ Alerta Confirmado", "Confiança elevada para 100% e publicado no mapa público.");
-    } else {
-      setTodosAlertas(todosAlertas.filter((al) => al.id !== id));
-      Alert.alert("🗑️ Descartado", "Falso alarme removido da base operacional.");
+  // Função para validar (Confirmar ou Negar/Deletar do Banco)
+  async function validarAlerta(id: any, aprovar: boolean) {
+    try {
+      if (aprovar) {
+        // Atualiza status para confirmado no backend ou estado local
+        setTodosAlertas(
+          todosAlertas.map((al) =>
+            al.id === id ? { ...al, confianca: 100, status: "CONFIRMADO" } : al
+          )
+        );
+        Alert.alert("✅ Alerta Confirmado", "Confiança elevada para 100% e publicado no mapa.");
+      } else {
+        // SE NEGADO: Deleta o evento/alerta diretamente do banco de dados
+        await api.delete(`/eventos/${id}`);
+
+        // Remove da lista local
+        setTodosAlertas(todosAlertas.filter((al) => al.id !== id));
+        Alert.alert("🗑️ Descartado e Deletado", "Registro removido permanentemente do banco de dados.");
+      }
+    } catch (error) {
+      console.error("Erro ao processar auditoria do evento:", error);
+      Alert.alert("Erro", "Não foi possível atualizar o registro no servidor.");
     }
   }
 
-  function emitirAlertaOficial() {
+  // Emite novo alerta e salva como Evento no banco de dados
+  async function emitirAlertaOficial() {
     if (!novoTitulo.trim() || !novaRegiao.trim()) {
       Alert.alert("Atenção", "Preencha o título e a região afetada.");
       return;
     }
 
-    const novo = {
-      id: Date.now(),
+    const novoEvento = {
       titulo: novoTitulo,
-      local: novaRegiao,
-      origem: `Oficial (${userData?.orgao || "Defesa Civil"})`,
-      confianca: 100,
-      severidade: novaSeveridade,
+      descricao: `Severidade: ${novaSeveridade} - Região: ${novaRegiao}`,
+      endereco: novaRegiao,
+      tipo: "ALERTA_OFICIAL",
+      origemDado: `Oficial (${userData?.orgao || "Defesa Civil"})`,
+      nivelConfianca: "100%",
+      nivelPrioridade: novaSeveridade,
       status: "CONFIRMADO",
     };
 
-    setTodosAlertas([novo, ...todosAlertas]);
-    setNovoTitulo("");
-    setNovaRegiao("");
-    setAba("ALERTAS");
-    Alert.alert("📢 Alerta Disparado", "Notificação enviada para todos os usuários PCD na área!");
+    try {
+      setCarregando(true);
+      const salvoNoBanco = await criarEvento(novoEvento);
+      
+      if (salvoNoBanco) {
+        setTodosAlertas([salvoNoBanco, ...todosAlertas]);
+      } else {
+        // Fallback caso a API retorne vazio mas execute com sucesso
+        setTodosAlertas([novoEvento, ...todosAlertas]);
+      }
+
+      setNovoTitulo("");
+      setNovaRegiao("");
+      setAba("ALERTAS");
+      Alert.alert("📢 Alerta Disparado", "Notificação oficial salva no banco e enviada aos usuários!");
+    } catch (error) {
+      console.error("Erro ao emitir alerta:", error);
+      Alert.alert("Erro", "Falha ao salvar alerta oficial no servidor.");
+    } finally {
+      setCarregando(false);
+    }
   }
 
   const nomeAgente = userData?.nome || "Agente Silva";
@@ -161,7 +184,7 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
           </View>
           <View style={[styles.kpiBox, { borderColor: "#00D4FF" }]}>
             <Text style={[styles.kpiNumber, { color: "#00D4FF" }]}>{todosAlertas.length}</Text>
-            <Text style={styles.kpiLabel}>Alertas</Text>
+            <Text style={styles.kpiLabel}>Eventos</Text>
           </View>
         </View>
       </View>
@@ -222,59 +245,71 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
           </>
         )}
 
-        {/* ABA 2: TODOS OS ALERTAS E VALIDAÇÃO */}
+        {/* ABA 2: EVENTOS, ALERTAS E AUDITORIA */}
         {aba === "ALERTAS" && (
           <>
-            <Text style={styles.sectionTitle}>📋 Todos os Alertas & Auditoria ({todosAlertas.length})</Text>
-            {todosAlertas.map((al) => (
-              <View key={al.id} style={styles.card}>
-                <View style={styles.rowBetween}>
-                  <Text
-                    style={[
-                      styles.badgeStatus,
-                      al.status === "CONFIRMADO" ? styles.badgeGreen : styles.badgeAmber,
-                    ]}
-                  >
-                    {al.status === "CONFIRMADO" ? "✔ CONFIRMADO" : "⏳ EM VALIDAÇÃO"}
-                  </Text>
-                  <Text style={styles.badgeCyan}>Confiança: {al.confianca}%</Text>
-                </View>
+            <View style={styles.rowBetween}>
+              <Text style={styles.sectionTitle}>📋 Eventos & Auditoria ({todosAlertas.length})</Text>
+              {carregando && <ActivityIndicator size="small" color="#00FF66" />}
+            </View>
 
-                <Text style={styles.cardTitle}>{al.titulo}</Text>
-                <Text style={styles.infoText}>📍 Região: {al.local}</Text>
-                <Text style={styles.infoText}>📡 Origem: {al.origem} • Severidade: {al.severidade}</Text>
-
-                {al.status === "EM_VALIDACAO" && (
-                  <View style={styles.valActionsRow}>
-                    <TouchableOpacity
-                      style={[styles.valBtn, { backgroundColor: "#00FF66" }]}
-                      onPress={() => validarAlerta(al.id, true)}
+            {todosAlertas.length === 0 ? (
+              <Text style={{ color: "#666677", textAlign: "center", marginTop: 20 }}>
+                Nenhum evento registrado no banco.
+              </Text>
+            ) : (
+              todosAlertas.map((al, index) => (
+                <View key={`alerta-${al.id || index}`} style={styles.card}>
+                  <View style={styles.rowBetween}>
+                    <Text
+                      style={[
+                        styles.badgeStatus,
+                        (al.status === "CONFIRMADO" || al.nivelConfianca === "100%") ? styles.badgeGreen : styles.badgeAmber,
+                      ]}
                     >
-                      <Text style={{ color: "#0B0B0E", fontWeight: "bold", fontSize: 12 }}>
-                        ✅ Confirmar (100%)
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.valBtn, { backgroundColor: "#2A121A", borderWidth: 1, borderColor: "#FF0055" }]}
-                      onPress={() => validarAlerta(al.id, false)}
-                    >
-                      <Text style={{ color: "#FF0055", fontWeight: "bold", fontSize: 12 }}>
-                        ✕ Descartar
-                      </Text>
-                    </TouchableOpacity>
+                      {(al.status === "CONFIRMADO" || al.nivelConfianca === "100%") ? "✔ CONFIRMADO" : "⏳ EM VALIDAÇÃO"}
+                    </Text>
+                    <Text style={styles.badgeCyan}>Confiança: {al.nivelConfianca || `${al.confianca}%`}</Text>
                   </View>
-                )}
-              </View>
-            ))}
+
+                  <Text style={styles.cardTitle}>{al.titulo}</Text>
+                  <Text style={styles.infoText}>📍 Região: {al.endereco || al.local}</Text>
+                  <Text style={styles.infoText}>📡 Origem: {al.origemDado || al.origem} | Severidade: {al.nivelPrioridade || al.severidade}</Text>
+                  <Text style={styles.infoText}>📝 {al.descricao}</Text>
+
+                  {/* Ações de Auditoria: Se negado, deleta do banco */}
+                  <div style={{ display: 'flex' }}>
+                    <View style={styles.valActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.valBtn, { backgroundColor: "#00FF66" }]}
+                        onPress={() => validarAlerta(al.id, true)}
+                      >
+                        <Text style={{ color: "#0B0B0E", fontWeight: "bold", fontSize: 12 }}>
+                          ✅ Confirmar
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.valBtn, { backgroundColor: "#2A121A", borderWidth: 1, borderColor: "#FF0055" }]}
+                        onPress={() => validarAlerta(al.id, false)}
+                      >
+                        <Text style={{ color: "#FF0055", fontWeight: "bold", fontSize: 12 }}>
+                          ✕ Negar / Deletar
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </div>
+                </View>
+              ))
+            )}
           </>
         )}
 
-        {/* ABA 3: EMITIR ALERTA OFICIAL */}
+        {/* ABA 3: EMITIR ALERTA OFICIAL (SALVA COMO EVENTO NO BANCO) */}
         {aba === "EMITIR" && (
           <View style={styles.card}>
-            <Text style={styles.sectionTitle}>📢 Emitir Alerta Oficial (Confiança 100%)</Text>
+            <Text style={styles.sectionTitle}>📢 Emitir Alerta Oficial (Salvar Evento)</Text>
             <Text style={styles.helperText}>
-              Alertas oficiais têm prioridade máxima e recalculam rotas automaticamente.
+              Alertas oficiais salvam diretamente na tabela de eventos do banco de dados.
             </Text>
 
             <Text style={styles.inputLabel}>NÍVEL DE SEVERIDADE</Text>
@@ -308,8 +343,14 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
               onChangeText={setNovaRegiao}
             />
 
-            <TouchableOpacity style={styles.emitBtn} onPress={emitirAlertaOficial}>
-              <Text style={styles.emitBtnText}>🚨 Disparar Alerta para Todos os Usuários</Text>
+            <TouchableOpacity 
+              style={[styles.emitBtn, carregando && { opacity: 0.7 }]} 
+              onPress={emitirAlertaOficial}
+              disabled={carregando}
+            >
+              <Text style={styles.emitBtnText}>
+                {carregando ? "Salvando no Banco..." : "🚨 Disparar e Salvar Evento"}
+              </Text>
             </TouchableOpacity>
           </View>
         )}
@@ -356,7 +397,7 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
 
         <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("ALERTAS")}>
           <Text style={[styles.tabIcon, aba === "ALERTAS" && styles.tabActive]}>📋</Text>
-          <Text style={[styles.tabText, aba === "ALERTAS" && styles.tabActive]}>Alertas</Text>
+          <Text style={[styles.tabText, aba === "ALERTAS" && styles.tabActive]}>Eventos</Text>
         </TouchableOpacity>
 
         <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EMITIR")}>
