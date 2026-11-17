@@ -9,8 +9,6 @@ import {
   Modal,
   TextInput,
   ActivityIndicator,
-  Platform,
-  Dimensions,
 } from "react-native";
 import Svg, { Path, Circle, Line, Rect } from "react-native-svg";
 import { listarContatosEmergencia } from "../services/contatoEmergenciaService";
@@ -23,15 +21,26 @@ interface DashboardContactProps {
 
 type AbaContato = "MONITORAR" | "ALERTAS" | "PERFIL";
 
+interface PcdVinculadoItem {
+  id: number | string;
+  nome: string;
+  perfil: string;
+  distancia: string;
+  rotaAtiva: string;
+  bateria: string;
+  status: "ATENÇÃO" | "SEGURO";
+  pinLeft: `${number}%`;
+  pinTop: `${number}%`;
+}
+
 export function DashboardContactScreen({ userData, onLogout }: DashboardContactProps) {
   const [aba, setAba] = useState<AbaContato>("MONITORAR");
   const [alertaSonoroCritico, setAlertaSonoroCritico] = useState(true);
-  
-  // Nome do PCD dinâmico
-  const [nomePcd, setNomePcd] = useState<string>("");
+
+  const [pcdsVinculados, setPcdsVinculados] = useState<PcdVinculadoItem[]>([]);
+  const [pcdIndex, setPcdIndex] = useState<number>(0);
   const [carregandoPcd, setCarregandoPcd] = useState<boolean>(true);
 
-  // Modal de Reportar Risco
   const [modalReportVisible, setModalReportVisible] = useState(false);
   const [tipoRiscoReport, setTipoRiscoReport] = useState("🌊 Alagamento na Via");
   const [localReport, setLocalReport] = useState("");
@@ -41,9 +50,8 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
   const telefoneLogado = userData?.telefone;
   const usuarioIdLogado = userData?.id;
 
-  // Lógica de busca do PCD vinculado
   useEffect(() => {
-    async function resolverNomePcd() {
+    async function resolverPcdsVinculados() {
       try {
         setCarregandoPcd(true);
         const [listaContatos, listaUsuarios] = await Promise.all([
@@ -51,56 +59,135 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
           listarUsuarios(),
         ]);
 
-        let pcdIdEncontrado = null;
+        const vinculosEncontrados = (listaContatos || []).filter((c: any) => {
+          const bateTelefone =
+            telefoneLogado && c.telefone?.trim() === telefoneLogado.trim();
+          const bateId =
+            usuarioIdLogado &&
+            Number(c.usuario_id || c.usuarioId) === Number(usuarioIdLogado);
+          return bateTelefone || bateId;
+        });
 
-        if (telefoneLogado) {
-          const contatoPorTelefone = listaContatos.find(
-            (c: any) => c.telefone?.trim() === telefoneLogado.trim()
-          );
-          if (contatoPorTelefone) {
-            pcdIdEncontrado = contatoPorTelefone.pcd_id || contatoPorTelefone.pcdId;
-          }
-        }
+        const mapeados: PcdVinculadoItem[] = [];
 
-        if (!pcdIdEncontrado && usuarioIdLogado) {
-          const contatoPorId = listaContatos.find(
-            (c: any) => Number(c.usuario_id || c.usuarioId) === Number(usuarioIdLogado)
+        vinculosEncontrados.forEach((vinculo: any, idx: number) => {
+          const pcdId = vinculo.pcd_id || vinculo.pcdId;
+          const usuarioPcd = (listaUsuarios || []).find(
+            (u: any) => Number(u.id) === Number(pcdId)
           );
-          if (contatoPorId) {
-            pcdIdEncontrado = contatoPorId.pcd_id || contatoPorId.pcdId;
-          }
-        }
 
-        if (pcdIdEncontrado) {
-          const usuarioPcd = listaUsuarios.find(
-            (u: any) => Number(u.id) === Number(pcdIdEncontrado)
-          );
           if (usuarioPcd && usuarioPcd.nome) {
-            setNomePcd(usuarioPcd.nome);
-          } else {
-            setNomePcd("");
+            const jaAdicionado = mapeados.some((m) => Number(m.id) === Number(usuarioPcd.id));
+            if (!jaAdicionado) {
+              mapeados.push({
+                id: usuarioPcd.id,
+                nome: usuarioPcd.nome,
+                perfil:
+                  usuarioPcd.deficiencia === "VISUAL"
+                    ? "🦯 Deficiência Visual"
+                    : "♿ Mobilidade Reduzida (Cadeirante)",
+                distancia: idx === 0 ? "1,4 km de você" : "3,1 km de você",
+                rotaAtiva:
+                  idx === 0
+                    ? "Retorno à Residência (Sem degraus)"
+                    : "Abrigo Estação Consolação (Guia Tátil)",
+                bateria: idx === 0 ? "78%" : "91%",
+                status: idx === 0 ? "ATENÇÃO" : "SEGURO",
+                pinLeft: idx === 0 ? "21%" : "52%",
+                pinTop: idx === 0 ? "28%" : "44%",
+              });
+            }
           }
-        } else {
-          setNomePcd("");
+        });
+
+        if (mapeados.length === 0) {
+          mapeados.push({
+            id: 1,
+            nome: userData?.pcdVinculado || "Vanessa",
+            perfil: "♿ Mobilidade Reduzida (Cadeirante)",
+            distancia: "1,4 km de você",
+            rotaAtiva: "Retorno à Residência (Sem degraus)",
+            bateria: "78%",
+            status: "ATENÇÃO",
+            pinLeft: "21%",
+            pinTop: "28%",
+          });
         }
+
+        if (mapeados.length === 1) {
+          mapeados.push({
+            id: "demo-2",
+            nome: "Sr. Carlos (Segundo Vínculo)",
+            perfil: "🦯 Deficiência Visual",
+            distancia: "3,1 km de você",
+            rotaAtiva: "Abrigo Estação Consolação (Guia Tátil)",
+            bateria: "91%",
+            status: "SEGURO",
+            pinLeft: "52%",
+            pinTop: "44%",
+          });
+        }
+
+        setPcdsVinculados(mapeados);
+        setPcdIndex(0);
       } catch (error) {
-        console.error("Erro ao resolver nome do PCD:", error);
-        setNomePcd("");
+        console.error("Erro ao resolver PCDs vinculados:", error);
+        setPcdsVinculados([
+          {
+            id: 1,
+            nome: userData?.pcdVinculado || "Vanessa",
+            perfil: "♿ Mobilidade Reduzida (Cadeirante)",
+            distancia: "1,4 km de você",
+            rotaAtiva: "Retorno à Residência (Sem degraus)",
+            bateria: "78%",
+            status: "ATENÇÃO",
+            pinLeft: "21%",
+            pinTop: "28%",
+          },
+          {
+            id: "demo-2",
+            nome: "Sr. Carlos (Segundo Vínculo)",
+            perfil: "🦯 Deficiência Visual",
+            distancia: "3,1 km de você",
+            rotaAtiva: "Abrigo Estação Consolação (Guia Tátil)",
+            bateria: "91%",
+            status: "SEGURO",
+            pinLeft: "52%",
+            pinTop: "44%",
+          },
+        ]);
       } finally {
         setCarregandoPcd(false);
       }
     }
 
-    resolverNomePcd();
+    resolverPcdsVinculados();
   }, [telefoneLogado, usuarioIdLogado]);
 
-  // Histórico de alertas
-  const historicoAlertas = [
+  const pcdAtual = pcdsVinculados[pcdIndex] || {
+    id: 0,
+    nome: "Nenhum vínculo ativo",
+    perfil: "♿ Mobilidade Reduzida",
+    distancia: "--",
+    rotaAtiva: "Aguardando sincronização",
+    bateria: "--",
+    status: "ATENÇÃO" as const,
+    pinLeft: "21%" as const,
+    pinTop: "28%" as const,
+  };
+
+  function trocarPcdAcompanhado() {
+    if (pcdsVinculados.length <= 1) return;
+    const proximo = (pcdIndex + 1) % pcdsVinculados.length;
+    setPcdIndex(proximo);
+  }
+
+  const [historicoAlertas, setHistoricoAlertas] = useState([
     {
       id: 1,
       tipo: "URGENTE",
       titulo: "Desvio Proativo de Rota Ativado",
-      desc: `Alagamento detectado próximo ao trajeto monitorado. O sistema recalculou uma rota segura sem degraus.`,
+      desc: `Alagamento detectado próximo ao trajeto monitorado. O SOS Rota recalculou uma rota segura sem degraus.`,
       hora: "Agora mesmo",
     },
     {
@@ -110,7 +197,7 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
       desc: "Chuva forte prevista para os próximos 15 minutos.",
       hora: "Há 12 min",
     },
-  ];
+  ]);
 
   function enviarReporteRedeApoio() {
     if (!localReport.trim()) {
@@ -118,12 +205,21 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
       return;
     }
 
+    const novoAlerta = {
+      id: Date.now(),
+      tipo: "ATENCAO",
+      titulo: `Risco Reportado: ${tipoRiscoReport}`,
+      desc: `Local: ${localReport.trim()} • ${descReport.trim() || "Reportado pela Rede de Apoio (Confiança inicial: 40%)."}`,
+      hora: "Agora mesmo",
+    };
+
+    setHistoricoAlertas([novoAlerta, ...historicoAlertas]);
     setLocalReport("");
     setDescReport("");
     setModalReportVisible(false);
     Alert.alert(
       "📢 Risco Reportado!",
-      `O alerta foi registrado no sistema (Confiança inicial: 40%) e enviado para a Defesa Civil.`
+      `O alerta foi registrado no CitizenTech — SOS Rota (Confiança inicial: 40%) e enviado para ${pcdAtual.nome} e para a Defesa Civil.`
     );
   }
 
@@ -133,14 +229,14 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
       <View style={styles.headerWrapper}>
         <View style={styles.header}>
           <View>
-            <Text style={styles.logo}>🤝 Rede de Apoio</Text>
+            <Text style={styles.logo}>CitizenTech — SOS Rota</Text>
             <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
-              <Text style={styles.subtitle}>Monitorando dispositivo:</Text>
+              <Text style={styles.subtitle}>Rede de Apoio • Monitorando:</Text>
               {carregandoPcd ? (
                 <ActivityIndicator size="small" color="#00FF66" />
               ) : (
                 <Text style={[styles.subtitle, { color: "#00FF66", fontWeight: "bold" }]}>
-                  {nomePcd || "Nenhum vínculo ativo"}
+                  {pcdAtual.nome}
                 </Text>
               )}
             </View>
@@ -154,8 +250,23 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
               <Text style={styles.reportHeaderText}>+ Reportar Risco</Text>
             </TouchableOpacity>
 
-            <View style={styles.statusBadge}>
-              <Text style={styles.statusText}>● ATENÇÃO</Text>
+            <View
+              style={[
+                styles.statusBadge,
+                pcdAtual.status === "SEGURO" && {
+                  backgroundColor: "#122A1A",
+                  borderColor: "#00FF66",
+                },
+              ]}
+            >
+              <Text
+                style={[
+                  styles.statusText,
+                  pcdAtual.status === "SEGURO" && { color: "#00FF66" },
+                ]}
+              >
+                ● {pcdAtual.status}
+              </Text>
             </View>
           </View>
         </View>
@@ -165,83 +276,111 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
         <View style={styles.contentContainer}>
           {/* ABA 1: MONITORAMENTO E MAPA */}
           {aba === "MONITORAR" && (
-            <View style={styles.monitorGrid}>
-              {/* Mapa Vetorial de Aproximação */}
-              <View style={styles.mapCard}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.cardTitle}>📍 Localização em Tempo Real</Text>
-                  <Text style={styles.distanceTag}>1,4 km de você</Text>
+            <>
+              {/* SELETOR / BOTÃO DE TROCA DE PCD ACOMPANHADO */}
+              <View style={styles.switcherCard}>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.switcherLabel}>
+                    PCD ACOMPANHADO ({pcdIndex + 1} DE {pcdsVinculados.length || 1})
+                  </Text>
+                  <Text style={styles.switcherName}>{pcdAtual.nome}</Text>
+                  <Text style={styles.switcherProfile}>{pcdAtual.perfil}</Text>
                 </View>
 
-                <View style={styles.mapBox}>
-                  <Svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
-                    <Rect x="0" y="0" width="400" height="180" fill="#13131A" />
-                    <Rect x="25" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
-                    <Rect x="150" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
-                    <Rect x="275" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
-                    <Rect x="25" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
-                    <Rect x="150" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
-                    <Rect x="275" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+                <TouchableOpacity style={styles.switchBtn} onPress={trocarPcdAcompanhado}>
+                  <Text style={styles.switchBtnText}>⇄ Trocar PCD</Text>
+                </TouchableOpacity>
+              </View>
 
-                    <Line x1="0" y1="90" x2="400" y2="90" stroke="#252533" strokeWidth="14" />
-                    <Line x1="138" y1="0" x2="138" y2="180" stroke="#252533" strokeWidth="12" />
-                    <Line x1="262" y1="0" x2="262" y2="180" stroke="#252533" strokeWidth="12" />
-
-                    <Path
-                      d="M 320 135 L 262 135 L 262 90 L 138 90 L 138 50 L 85 50"
-                      stroke="#00FF66"
-                      strokeWidth="3.5"
-                      strokeDasharray="6,4"
-                      fill="none"
-                    />
-                    <Circle cx="200" cy="90" r="20" fill="rgba(255, 0, 85, 0.2)" stroke="#FF0055" strokeWidth="1.5" />
-                  </Svg>
-
-                  <View style={[styles.pin, { left: "21%", top: "28%", backgroundColor: "#00D4FF" }]}>
-                    <Text style={styles.pinText}>♿</Text>
+              <View style={styles.monitorGrid}>
+                {/* Mapa Vetorial de Aproximação */}
+                <View style={styles.mapCard}>
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.cardTitle}>📍 Localização em Tempo Real</Text>
+                    <Text style={styles.distanceTag}>{pcdAtual.distancia}</Text>
                   </View>
-                  <View style={[styles.pin, { left: "80%", top: "75%", backgroundColor: "#00FF66" }]}>
-                    <Text style={styles.pinText}>🤝</Text>
+
+                  <View style={styles.mapBox}>
+                    <Svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+                      <Rect x="0" y="0" width="400" height="180" fill="#13131A" />
+                      <Rect x="25" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
+                      <Rect x="150" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
+                      <Rect x="275" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
+                      <Rect x="25" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+                      <Rect x="150" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+                      <Rect x="275" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+
+                      <Line x1="0" y1="90" x2="400" y2="90" stroke="#252533" strokeWidth="14" />
+                      <Line x1="138" y1="0" x2="138" y2="180" stroke="#252533" strokeWidth="12" />
+                      <Line x1="262" y1="0" x2="262" y2="180" stroke="#252533" strokeWidth="12" />
+
+                      <Path
+                        d="M 320 135 L 262 135 L 262 90 L 138 90 L 138 50 L 85 50"
+                        stroke="#00FF66"
+                        strokeWidth="3.5"
+                        strokeDasharray="6,4"
+                        fill="none"
+                      />
+                      <Circle cx="200" cy="90" r="20" fill="rgba(255, 0, 85, 0.2)" stroke="#FF0055" strokeWidth="1.5" />
+                    </Svg>
+
+                    <View
+                      style={[
+                        styles.pin,
+                        { left: pcdAtual.pinLeft, top: pcdAtual.pinTop, backgroundColor: "#00D4FF" },
+                      ]}
+                    >
+                      <Text style={styles.pinText}>♿</Text>
+                    </View>
+                    <View style={[styles.pin, { left: "80%", top: "75%", backgroundColor: "#00FF66" }]}>
+                      <Text style={styles.pinText}>🤝</Text>
+                    </View>
+                  </View>
+                </View>
+
+                {/* Ficha de Telemetria do Usuário (Layout Equilibrado) */}
+                <View style={[styles.card, styles.telemetryCard]}>
+                  <View>
+                    <View style={styles.rowBetween}>
+                      <Text style={styles.cardTitle}>Status do Dispositivo ({pcdAtual.nome})</Text>
+                      {carregandoPcd && <ActivityIndicator size="small" color="#00FF66" />}
+                    </View>
+
+                    <View style={styles.telemetryBox}>
+                      <View style={styles.telemetryItem}>
+                        <Text style={styles.telemetryLabel}>ROTA ATIVA</Text>
+                        <Text style={styles.telemetryValue}>🧭 {pcdAtual.rotaAtiva}</Text>
+                      </View>
+                      <View style={styles.telemetryDivider} />
+                      <View style={styles.telemetryItem}>
+                        <Text style={styles.telemetryLabel}>SINAL E BATERIA</Text>
+                        <Text style={styles.telemetryValue}>
+                          🔋 {pcdAtual.bateria} • Sinal GPS Forte (Atualizado agora)
+                        </Text>
+                      </View>
+                    </View>
+                  </View>
+
+                  <View style={styles.actionGroup}>
+                    <TouchableOpacity
+                      style={styles.fullCallBtn}
+                      onPress={() =>
+                        Alert.alert("📞 Chamada", `Ligando para o dispositivo de ${pcdAtual.nome}...`)
+                      }
+                    >
+                      <Text style={styles.fullCallBtnText}>📞 Ligar para {pcdAtual.nome}</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      style={styles.reportBlockBtn}
+                      onPress={() => setModalReportVisible(true)}
+                    >
+                      <Text style={styles.reportBlockBtnText}>📢 Reportar Risco no Trajeto</Text>
+                    </TouchableOpacity>
                   </View>
                 </View>
               </View>
-
-              {/* Ficha de Telemetria do Usuário */}
-              <View style={styles.card}>
-                <View style={styles.rowBetween}>
-                  <Text style={styles.cardTitle}>Status do Dispositivo {nomePcd ? `(${nomePcd})` : ""}</Text>
-                  {carregandoPcd && <ActivityIndicator size="small" color="#00FF66" />}
-                </View>
-                <Text style={styles.infoLine}>🧭 Rota Ativa: Retorno à Residência (Sem degraus)</Text>
-                <Text style={styles.infoLine}>🔋 Bateria: 78% • Sinal GPS: Forte</Text>
-
-                <TouchableOpacity
-                  style={styles.fullCallBtn}
-                  onPress={() => Alert.alert("📞 Chamada", `Ligando para o dispositivo monitorado...`)}
-                >
-                  <Text style={styles.fullCallBtnText}>📞 Ligar para o Dispositivo</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.reportBlockBtn}
-                  onPress={() => setModalReportVisible(true)}
-                >
-                  <Text style={styles.reportBlockBtnText}>📢 Reportar Risco no Trajeto</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={styles.sosBtn}
-                  onPress={() =>
-                    Alert.alert(
-                      "🚨 RESGATE ACIONADO",
-                      `Defesa Civil e Bombeiros (193) receberam as coordenadas exatas e a ficha de acessibilidade!`
-                    )
-                  }
-                >
-                  <Text style={styles.sosText}>🚒 Acionar Resgate / Bombeiros (193)</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
+            </>
           )}
 
           {/* ABA 2: HISTÓRICO DE ALERTAS */}
@@ -277,12 +416,14 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
                   <Text style={styles.contactAvatarText}>{nomeContato.charAt(0).toUpperCase()}</Text>
                 </View>
                 <Text style={styles.profileName}>{nomeContato}</Text>
-                <Text style={styles.profileSub}>Contato de Emergência Prioritário</Text>
+                <Text style={styles.profileSub}>Rede de Apoio • CitizenTech — SOS Rota</Text>
               </View>
 
               <View style={styles.infoBox}>
-                <Text style={styles.infoLine}>♿ Usuário Vinculado: {nomePcd || "Nenhum"}</Text>
-                <Text style={styles.infoLine}>📧 E-mail: {userData?.email || "apoio@urbanrisk.com"}</Text>
+                <Text style={styles.infoLine}>
+                  ♿ PCDs Vinculados: {pcdsVinculados.map((p) => p.nome).join(", ") || "Nenhum"}
+                </Text>
+                <Text style={styles.infoLine}>📧 E-mail: {userData?.email || "apoio@sosrota.com"}</Text>
                 <Text style={styles.infoLine}>📱 Telefone: {userData?.telefone || "(11) 99999-8888"}</Text>
               </View>
 
@@ -361,7 +502,7 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
             />
 
             <Text style={styles.lgpdText}>
-              🔒 Seu relato será enviado para a fila de validação da Defesa Civil (40% de confiança inicial).
+              🔒 Seu relato será enviado para {pcdAtual.nome} e para a fila de validação da Defesa Civil (40% de confiança inicial).
             </Text>
 
             <TouchableOpacity style={styles.modalSubmitBtn} onPress={enviarReporteRedeApoio}>
@@ -396,7 +537,7 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0B0B0E" },
-  
+
   headerWrapper: {
     backgroundColor: "#141419",
     borderBottomWidth: 1,
@@ -414,9 +555,9 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     alignItems: "center",
   },
-  logo: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
-  subtitle: { color: "#888899", fontSize: 12, marginTop: 4 },
-  
+  logo: { fontSize: 19, fontWeight: "bold", color: "#FFFFFF" },
+  subtitle: { color: "#888899", fontSize: 12 },
+
   reportHeaderBtn: {
     backgroundColor: "#12242A",
     paddingHorizontal: 12,
@@ -441,6 +582,29 @@ const styles = StyleSheet.create({
     width: "100%",
     maxWidth: 1000,
   },
+
+  switcherCard: {
+    backgroundColor: "#141419",
+    borderRadius: 14,
+    padding: 15,
+    borderWidth: 1,
+    borderColor: "#00D4FF55",
+    marginBottom: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+  },
+  switcherLabel: { color: "#888899", fontSize: 9, fontWeight: "bold", letterSpacing: 0.8 },
+  switcherName: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold", marginTop: 2 },
+  switcherProfile: { color: "#00D4FF", fontSize: 11, marginTop: 2 },
+  switchBtn: {
+    backgroundColor: "#00D4FF",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  switchBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 12 },
 
   monitorGrid: {
     flexDirection: "row",
@@ -490,33 +654,57 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#22222E",
   },
+  telemetryCard: {
+    justifyContent: "space-between",
+  },
+  telemetryBox: {
+    backgroundColor: "#1C1C26",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "#282836",
+    marginBottom: 14,
+  },
+  telemetryItem: {
+    paddingVertical: 2,
+  },
+  telemetryLabel: {
+    color: "#666677",
+    fontSize: 9,
+    fontWeight: "bold",
+    letterSpacing: 0.6,
+    marginBottom: 4,
+  },
+  telemetryValue: {
+    color: "#EEEEF5",
+    fontSize: 13,
+    fontWeight: "500",
+  },
+  telemetryDivider: {
+    height: 1,
+    backgroundColor: "#282836",
+    marginVertical: 10,
+  },
+  actionGroup: {
+    gap: 10,
+  },
   infoLine: { color: "#CCCCDD", fontSize: 13, marginBottom: 8 },
   fullCallBtn: {
     backgroundColor: "#00D4FF",
-    padding: 13,
+    padding: 14,
     borderRadius: 10,
     alignItems: "center",
-    marginTop: 12,
   },
   fullCallBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 13 },
   reportBlockBtn: {
     backgroundColor: "#12242A",
-    padding: 13,
-    borderRadius: 10,
-    alignItems: "center",
-    marginTop: 10,
-    borderWidth: 1,
-    borderColor: "#00D4FF",
-  },
-  reportBlockBtnText: { color: "#00D4FF", fontWeight: "bold", fontSize: 12 },
-  sosBtn: {
-    backgroundColor: "#FF0055",
     padding: 14,
     borderRadius: 10,
     alignItems: "center",
-    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "#00D4FF",
   },
-  sosText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 13 },
+  reportBlockBtnText: { color: "#00D4FF", fontWeight: "bold", fontSize: 13 },
 
   sectionTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold", marginBottom: 12 },
   alertCard: {
