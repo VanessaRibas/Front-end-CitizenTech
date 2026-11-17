@@ -141,7 +141,7 @@ export function LoginScreen({
     >
       <View style={styles.card}>
         <View style={styles.header}>
-          <Text style={styles.badge}>🛡️ CITIZENTECH</Text>
+          <Text style={styles.badge}>🛡️ CITIZENTECH - SOS Rota</Text>
 
           <Text style={styles.title}>
             Bem-vindo de volta
