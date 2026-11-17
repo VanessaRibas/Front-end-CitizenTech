@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -9,8 +9,9 @@ import {
   Alert,
 } from "react-native";
 import { UserRole } from "./LoginScreen";
-import { criarUsuario } from "../services/usuarioService";
-import { criarLocalSeguro } from "../services/locaisSegurosService"; // Serviço responsável pelo POST em /locais-seguros
+import { criarUsuario, listarUsuarios } from "../services/usuarioService";
+import { criarLocalSeguro } from "../services/locaisSegurosService";
+import { criarContatoEmergencia } from "../services/contatoEmergenciaService"; // Importando o service de contato de emergência
 
 interface RegisterScreenProps {
   role: UserRole;
@@ -28,10 +29,11 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
   const [enderecoCasa, setEnderecoCasa] = useState("");
   const [novoLocalNome, setNovoLocalNome] = useState("");
   const [novoLocalEnd, setNovoLocalEnd] = useState("");
-  const [locaisSeguros, setLocaisSeguros] = useState<{ nome: string; endereco: string }[]>([]);
+  const [locaisSeguros, setLocaisSeguros] = useState<{ nomeLocal: string; endereco: string }[]>([]);
 
-  // Campos Contato
+  // Campos Contato (Rede de Apoio)
   const [pcdVinculado, setPcdVinculado] = useState("");
+  const [usuariosCadastrados, setUsuariosCadastrados] = useState<any[]>([]);
 
   // Campos Admin
   const [matricula, setMatricula] = useState("");
@@ -40,9 +42,25 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
   // Estado de carregamento da requisição
   const [carregando, setCarregando] = useState(false);
 
+  // Carrega a lista de usuários ao montar a tela para validar o PCD vinculado se for Contato
+  useEffect(() => {
+    async function carregarUsuarios() {
+      try {
+        const lista = await listarUsuarios();
+        setUsuariosCadastrados(lista || []);
+      } catch (error) {
+        console.error("Erro ao carregar lista de usuários:", error);
+      }
+    }
+    carregarUsuarios();
+  }, []);
+
   function adicionarLocalSeguro() {
     if (novoLocalNome.trim() && novoLocalEnd.trim()) {
-      setLocaisSeguros([...locaisSeguros, { nome: novoLocalNome, endereco: novoLocalEnd }]);
+      setLocaisSeguros([
+        ...locaisSeguros,
+        { nomeLocal: novoLocalNome.trim(), endereco: novoLocalEnd.trim() }
+      ]);
       setNovoLocalNome("");
       setNovoLocalEnd("");
     } else {
@@ -54,6 +72,33 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
     if (!nome.trim() || !email.trim()) {
       Alert.alert("Campos obrigatórios", "Por favor, informe seu nome e e-mail.");
       return;
+    }
+
+    let pcdEncontradoId = null;
+
+    // Se o perfil for CONTATO (Rede de Apoio), valida se o PCD digitado existe no banco
+    if (role === "CONTATO") {
+      if (!pcdVinculado.trim()) {
+        Alert.alert("Campo obrigatório", "Informe o nome do usuário PCD que você acompanha.");
+        return;
+      }
+
+      // Procura na lista de usuários cadastrados um usuário com o nome informado e tipo "pcd"
+      const pcdMatch = usuariosCadastrados.find(
+        (u) => 
+          u.nome?.trim().toLowerCase() === pcdVinculado.trim().toLowerCase() && 
+          (u.tipoPerfil === "pcd" || u.tipoPerfil === "PCD")
+      );
+
+      if (!pcdMatch) {
+        Alert.alert(
+          "PCD não encontrado", 
+          `O usuário PCD "${pcdVinculado}" não está cadastrado no sistema. Verifique o nome exato.`
+        );
+        return;
+      }
+
+      pcdEncontradoId = pcdMatch.id;
     }
 
     const tipoPerfilMapeado = role.toLowerCase();
@@ -74,32 +119,40 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
     try {
       setCarregando(true);
       
-      // 1. Cria o usuário principal e captura o objeto retornado (contendo o ID gerado pelo banco)
+      // 1. Cria o usuário principal (seja PCD ou Contato) e obtém o ID gerado
       const usuarioCriado = await criarUsuario(payloadUsuario);
-      const pcdIdGerado = usuarioCriado?.id;
+      const usuarioIdGerado = usuarioCriado?.id;
 
-      if (!pcdIdGerado) {
+      if (!usuarioIdGerado) {
         throw new Error("O servidor não retornou o ID do usuário cadastrado.");
       }
 
-      // 2. Se for PCD e houver locais seguros na lista, envia cada um para a rota /locais-seguros
+      // 2. Se for PCD, cadastra os locais seguros vinculados
       if (role === "PCD" && locaisSeguros.length > 0) {
         for (const local of locaisSeguros) {
           const payloadLocalSeguro = {
-            pcd_id: pcdIdGerado,
-            nomeLocal: local.nome,
+            pcd_id: usuarioIdGerado,
+            nomeLocal: local.nomeLocal,
             endereco: local.endereco,
           };
-          
-          // Executa a requisição POST para salvar o local seguro na tabela correspondente
           await criarLocalSeguro(payloadLocalSeguro);
         }
       }
 
-      Alert.alert("Sucesso", "Usuário e locais seguros cadastrados com sucesso no banco!");
-      onCompleteRegister(role, { ...payloadUsuario, id: pcdIdGerado });
+      // 3. Se for CONTATO, cria o registro na tabela contato_emergencia relacionando apoio e PCD
+      if (role === "CONTATO" && pcdEncontradoId) {
+        const payloadContatoEmergencia = {
+          usuario_id: usuarioIdGerado, // ID do usuário de apoio recém-criado
+          pcd_id: pcdEncontradoId,     // ID do PCD validado no banco
+          telefone: telefone || "(11) 99999-9999",
+        };
+        await criarContatoEmergencia(payloadContatoEmergencia);
+      }
+
+      Alert.alert("Sucesso", "Cadastro e vínculos realizados com sucesso no banco!");
+      onCompleteRegister(role, { ...payloadUsuario, id: usuarioIdGerado });
     } catch (error) {
-      console.error("Erro ao salvar cadastro ou locais seguros:", error);
+      console.error("Erro ao salvar cadastro:", error);
       Alert.alert("Erro", "Não foi possível salvar os dados no servidor. Verifique a conexão.");
     } finally {
       setCarregando(false);
@@ -200,7 +253,7 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
               {locaisSeguros.map((loc, idx) => (
                 <View key={idx} style={styles.savedItem}>
                   <Text style={styles.savedItemText}>
-                    📍 <Text style={{ fontWeight: "bold" }}>{loc.nome}:</Text> {loc.endereco}
+                    📍 <Text style={{ fontWeight: "bold" }}>{loc.nomeLocal}:</Text> {loc.endereco}
                   </Text>
                 </View>
               ))}
@@ -214,11 +267,14 @@ export function RegisterScreen({ role, onCompleteRegister, onBack }: RegisterScr
             <Text style={styles.sectionTitle}>2. Vínculo de Acompanhamento</Text>
             <TextInput
               style={styles.input}
-              placeholder="Nome do Usuário PCD acompanhado"
+              placeholder="Nome exato do Usuário PCD cadastrado"
               placeholderTextColor="#666677"
               value={pcdVinculado}
               onChangeText={setPcdVinculado}
             />
+            <Text style={{ color: "#888899", fontSize: 10, marginTop: 4 }}>
+              * O usuário PCD informado precisa já possuir cadastro prévio no sistema.
+            </Text>
           </View>
         )}
 

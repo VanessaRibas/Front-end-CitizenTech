@@ -191,291 +191,303 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
   return (
     <View style={styles.container}>
       {/* CABEÇALHO SUPERIOR */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.logo}>🛡️ CCO Operacional</Text>
-          <Text style={styles.subtitle}>
-            {orgaoAgente} • {emPlantao ? "🟢 Em Plantão" : "⚪ Fora de Turno"}
-          </Text>
-        </View>
-        <View style={styles.kpiRow}>
-          <View style={styles.kpiBox}>
-            <Text style={styles.kpiNumber}>{sosAtivos.length}</Text>
-            <Text style={styles.kpiLabel}>SOS</Text>
+      <View style={styles.headerWrapper}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.logo}>🛡️ CCO Operacional</Text>
+            <Text style={styles.subtitle}>
+              {orgaoAgente} • {emPlantao ? "🟢 Em Plantão" : "⚪ Fora de Turno"}
+            </Text>
           </View>
-          <View style={[styles.kpiBox, { borderColor: "#00D4FF" }]}>
-            <Text style={[styles.kpiNumber, { color: "#00D4FF" }]}>{listaEventos.length}</Text>
-            <Text style={styles.kpiLabel}>Eventos</Text>
+          <View style={styles.kpiRow}>
+            <View style={styles.kpiBox}>
+              <Text style={styles.kpiNumber}>{sosAtivos.length}</Text>
+              <Text style={styles.kpiLabel}>SOS</Text>
+            </View>
+            <View style={[styles.kpiBox, { borderColor: "#00D4FF" }]}>
+              <Text style={[styles.kpiNumber, { color: "#00D4FF" }]}>{listaEventos.length}</Text>
+              <Text style={styles.kpiLabel}>Eventos</Text>
+            </View>
           </View>
         </View>
       </View>
 
       {/* CONTEÚDO DAS ABAS */}
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ABA 1: OPERAÇÕES (CHAMADOS SOS + ABRIGOS) */}
-        {aba === "OPERACOES" && (
-          <>
-            <View style={[styles.rowBetween, { marginTop: 10 }]}>
-              <Text style={styles.sectionTitle}>Fila de Chamados SOS Ativos ({sosAtivos.length})</Text>
-              {carregando && <ActivityIndicator size="small" color="#00FF66" />}
-            </View>
-
-            {sosAtivos.length === 0 ? (
-              <Text style={{ color: "#666677", textAlign: "center", marginTop: 15, marginBottom: 15 }}>
-                Nenhum chamado SOS registrado na tabela chamadosSOS.
-              </Text>
-            ) : (
-              <View>
-                {/* CONTROLE DE SETAS PARA NAVEGAR ENTRE PÁGINAS */}
-                <View style={styles.paginacaoContainer}>
-                  <TouchableOpacity
-                    style={[styles.setaBtn, paginaSos === 0 && styles.setaBtnDisabled]}
-                    disabled={paginaSos === 0}
-                    onPress={() => setPaginaSos((prev) => Math.max(prev - 1, 0))}
-                  >
-                    <Text style={[styles.setaText, paginaSos === 0 && { color: "#444455" }]}>◀ Anterior</Text>
-                  </TouchableOpacity>
-
-                  <Text style={styles.paginacaoTexto}>
-                    Página {paginaSos + 1} de {totalPaginasSos}
-                  </Text>
-
-                  <TouchableOpacity
-                    style={[styles.setaBtn, paginaSos >= totalPaginasSos - 1 && styles.setaBtnDisabled]}
-                    disabled={paginaSos >= totalPaginasSos - 1}
-                    onPress={() => setPaginaSos((prev) => Math.min(prev + 1, totalPaginasSos - 1))}
-                  >
-                    <Text style={[styles.setaText, paginaSos >= totalPaginasSos - 1 && { color: "#444455" }]}>Próxima ▶</Text>
-                  </TouchableOpacity>
+        <View style={styles.contentContainer}>
+          {/* ABA 1: OPERAÇÕES (CHAMADOS SOS + ABRIGOS) */}
+          {aba === "OPERACOES" && (
+            <View style={styles.gridContainer}>
+              {/* COLUNA ESQUERDA: SOS */}
+              <View style={styles.gridColumn}>
+                <View style={[styles.rowBetween, { marginTop: 10 }]}>
+                  <Text style={styles.sectionTitle}>Fila de Chamados SOS ({sosAtivos.length})</Text>
+                  {carregando && <ActivityIndicator size="small" color="#00FF66" />}
                 </View>
 
-                {/* GRID / LISTA DOS 5 ITENS DA PÁGINA ATUAL */}
-                <View style={{ gap: 10 }}>
-                  {sosPaginados.map((sos) => (
-                    <View key={`sos-${sos.id}`} style={styles.card}>
-                      <View style={styles.rowBetween}>
-                        <Text style={styles.cardTitle}>Chamado #{sos.id}</Text>
-                        <Text style={styles.badgeRed}>{sos.nivelAcionamento}</Text>
-                      </View>
-                      <View style={{ flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
-                        <Text style={styles.specText}>👤 PCD ID: {sos.pcdId}</Text>
-                        <Text style={styles.specText}>📡 Status: {sos.status}</Text>
-                        <Text style={styles.infoText}>📍 Coords: {sos.latitude?.toFixed(4)}, {sos.longitude?.toFixed(4)}</Text>
-                        <Text style={styles.infoText}>🕒 {sos.dataHora ? new Date(sos.dataHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}</Text>
-                      </View>
+                {sosAtivos.length === 0 ? (
+                  <Text style={{ color: "#666677", textAlign: "center", marginTop: 15, marginBottom: 15 }}>
+                    Nenhum chamado SOS registrado na tabela chamadosSOS.
+                  </Text>
+                ) : (
+                  <View>
+                    {/* CONTROLE DE SETAS PARA NAVEGAR ENTRE PÁGINAS */}
+                    <View style={styles.paginacaoContainer}>
+                      <TouchableOpacity
+                        style={[styles.setaBtn, paginaSos === 0 && styles.setaBtnDisabled]}
+                        disabled={paginaSos === 0}
+                        onPress={() => setPaginaSos((prev) => Math.max(prev - 1, 0))}
+                      >
+                        <Text style={[styles.setaText, paginaSos === 0 && { color: "#444455" }]}>◀ Anterior</Text>
+                      </TouchableOpacity>
+
+                      <Text style={styles.paginacaoTexto}>
+                        Pág {paginaSos + 1} de {totalPaginasSos}
+                      </Text>
 
                       <TouchableOpacity
-                        style={styles.actionBtn}
-                        disabled={carregando}
-                        onPress={() => despacharViatura(sos.id)}
+                        style={[styles.setaBtn, paginaSos >= totalPaginasSos - 1 && styles.setaBtnDisabled]}
+                        disabled={paginaSos >= totalPaginasSos - 1}
+                        onPress={() => setPaginaSos((prev) => Math.min(prev + 1, totalPaginasSos - 1))}
                       >
-                        <Text style={styles.actionBtnText}>🚒 Despachar Viatura & Deletar SOS</Text>
+                        <Text style={[styles.setaText, paginaSos >= totalPaginasSos - 1 && { color: "#444455" }]}>Próxima ▶</Text>
                       </TouchableOpacity>
                     </View>
-                  ))}
-                </View>
-              </View>
-            )}
 
-            <View style={[styles.rowBetween, { marginTop: 25 }]}>
-              <Text style={styles.sectionTitle}>🏢 Gestão de Abrigos Públicos Acessíveis</Text>
-              <TouchableOpacity onPress={carregarDadosDoBanco}>
-                <Text style={{ color: "#00D4FF", fontSize: 11, fontWeight: "bold" }}>🔄 Atualizar</Text>
-              </TouchableOpacity>
-            </View>
-            <Text style={styles.helperText}>Toque no status para alternar disponibilidade:</Text>
+                    {/* GRID / LISTA DOS ITENS */}
+                    <View style={{ gap: 10 }}>
+                      {sosPaginados.map((sos) => (
+                        <View key={`sos-${sos.id}`} style={styles.card}>
+                          <View style={styles.rowBetween}>
+                            <Text style={styles.cardTitle}>Chamado #{sos.id}</Text>
+                            <Text style={styles.badgeRed}>{sos.nivelAcionamento}</Text>
+                          </View>
+                          <View style={{ flexDirection: "row", justifyContent: "space-between", flexWrap: "wrap", gap: 10 }}>
+                            <Text style={styles.specText}>👤 PCD ID: {sos.pcdId}</Text>
+                            <Text style={styles.specText}>📡 Status: {sos.status}</Text>
+                            <Text style={styles.infoText}>📍 Coords: {sos.latitude?.toFixed(4)}, {sos.longitude?.toFixed(4)}</Text>
+                            <Text style={styles.infoText}>🕒 {sos.dataHora ? new Date(sos.dataHora).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : "N/A"}</Text>
+                          </View>
 
-            {abrigos.length === 0 ? (
-              <View style={styles.emptyCard}>
-                <Text style={styles.emptyText}>Sem locais seguros cadastrados</Text>
-              </View>
-            ) : (
-              abrigos.map((ab) => (
-                <View key={ab.id} style={styles.shelterCard}>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.shelterName}>{ab.nome}</Text>
-                    <Text style={styles.shelterSub}>
-                      📍 {ab.recurso}
-                    </Text>
+                          <TouchableOpacity
+                            style={styles.actionBtn}
+                            disabled={carregando}
+                            onPress={() => despacharViatura(sos.id)}
+                          >
+                            <Text style={styles.actionBtnText}>🚒 Despachar Viatura & Deletar SOS</Text>
+                          </TouchableOpacity>
+                        </View>
+                      ))}
+                    </View>
                   </View>
-                  <TouchableOpacity
-                    style={[
-                      styles.statusPill,
-                      ab.status === "ABERTO" && { backgroundColor: "#122A1A", borderColor: "#00FF66" },
-                      ab.status === "LOTADO" && { backgroundColor: "#2A2212", borderColor: "#F59E0B" },
-                      ab.status === "INACESSIVEL" && { backgroundColor: "#2A121A", borderColor: "#FF0055" },
-                    ]}
-                    onPress={() => alternarStatusAbrigo(ab.id)}
-                  >
-                    <Text style={styles.statusPillText}>{ab.status}</Text>
+                )}
+              </View>
+
+              {/* COLUNA DIREITA: ABRIGOS */}
+              <View style={styles.gridColumn}>
+                <View style={[styles.rowBetween, { marginTop: 10 }]}>
+                  <Text style={styles.sectionTitle}>🏢 Gestão de Abrigos Públicos</Text>
+                  <TouchableOpacity onPress={carregarDadosDoBanco}>
+                    <Text style={{ color: "#00D4FF", fontSize: 11, fontWeight: "bold" }}>🔄 Atualizar</Text>
                   </TouchableOpacity>
                 </View>
-              ))
-            )}
-          </>
-        )}
+                <Text style={styles.helperText}>Toque no status para alternar disponibilidade:</Text>
 
-        {/* ABA 2: EVENTOS */}
-        {aba === "EVENTOS" && (
-          <>
-            <View style={styles.rowBetween}>
-              <Text style={styles.sectionTitle}>📋 Gestão de Eventos & Auditoria ({listaEventos.length})</Text>
-              {carregando && <ActivityIndicator size="small" color="#00FF66" />}
-            </View>
-
-            {listaEventos.length === 0 ? (
-              <Text style={{ color: "#666677", textAlign: "center", marginTop: 20 }}>
-                Nenhum evento registrado no banco.
-              </Text>
-            ) : (
-              listaEventos.map((ev, index) => (
-                <View key={`evento-${ev.id || index}`} style={styles.card}>
-                  <View style={styles.rowBetween}>
-                    <Text
-                      style={[
-                        styles.badgeStatus,
-                        (ev.status === "CONFIRMADO" || ev.nivelConfianca === "100%") ? styles.badgeGreen : styles.badgeAmber,
-                      ]}
-                    >
-                      {(ev.status === "CONFIRMADO" || ev.nivelConfianca === "100%") ? "✔ CONFIRMADO" : "⏳ EM VALIDAÇÃO"}
-                    </Text>
-                    <Text style={styles.badgeCyan}>Confiança: {ev.nivelConfianca || "100%"}</Text>
+                {abrigos.length === 0 ? (
+                  <View style={styles.emptyCard}>
+                    <Text style={styles.emptyText}>Sem locais seguros cadastrados</Text>
                   </View>
-
-                  <Text style={styles.cardTitle}>{ev.titulo}</Text>
-                  <Text style={styles.infoText}>📍 Endereço / Local: {ev.endereco || ev.local}</Text>
-                  <Text style={styles.infoText}>📡 Origem: {ev.origemDado || "Defesa Civil"} | Severidade: {ev.nivelPrioridade || "ALTO"}</Text>
-                  <Text style={styles.infoText}>📝 {ev.descricao}</Text>
-
-                  <View style={styles.valActionsRow}>
-                    <TouchableOpacity
-                      style={[styles.valBtn, { backgroundColor: "#00FF66" }]}
-                      onPress={() => validarEvento(ev.id, true)}
-                    >
-                      <Text style={{ color: "#0B0B0E", fontWeight: "bold", fontSize: 12 }}>
-                        ✅ Confirmar
-                      </Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                      style={[styles.valBtn, { backgroundColor: "#2A121A", borderWidth: 1, borderColor: "#FF0055" }]}
-                      onPress={() => validarEvento(ev.id, false)}
-                    >
-                      <Text style={{ color: "#FF0055", fontWeight: "bold", fontSize: 12 }}>
-                        ✕ Negar / Deletar
-                      </Text>
-                    </TouchableOpacity>
-                  </View>
-                </View>
-              ))
-            )}
-          </>
-        )}
-
-        {/* ABA 3: EMITIR */}
-        {aba === "EMITIR" && (
-          <View style={styles.card}>
-            <Text style={styles.sectionTitle}>📢 Emitir Chamado SOS (Salvar em chamadosSOS)</Text>
-            <Text style={styles.helperText}>
-              Emitir um chamado oficial registrará os dados diretamente na tabela de chamados SOS do backend.
-            </Text>
-
-            <Text style={styles.inputLabel}>NÍVEL DE SEVERIDADE / ACIONAMENTO</Text>
-            <View style={styles.rowGap}>
-              {(["CRÍTICO", "ALTO", "MÉDIO"] as const).map((niv) => (
-                <TouchableOpacity
-                  key={niv}
-                  style={[styles.sevChip, novaSeveridade === niv && styles.sevChipActive]}
-                  onPress={() => setNovaSeveridade(niv)}
-                >
-                  <Text style={styles.sevChipText}>{niv}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-
-            <Text style={styles.inputLabel}>TÍTULO DO CHAMADO</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Alagamento Severo / Queda de Árvore"
-              placeholderTextColor="#666677"
-              value={novoTitulo}
-              onChangeText={setNovoTitulo}
-            />
-
-            <Text style={styles.inputLabel}>REGIÃO OU VIA AFETADA</Text>
-            <TextInput
-              style={styles.input}
-              placeholder="Ex: Av. Paulista, altura nº 1200"
-              placeholderTextColor="#666677"
-              value={novaRegiao}
-              onChangeText={setNovaRegiao}
-            />
-
-            <TouchableOpacity 
-              style={[styles.emitBtn, carregando && { opacity: 0.7 }]} 
-              onPress={emitirAlertaOficial}
-              disabled={carregando}
-            >
-              <Text style={styles.emitBtnText}>
-                {carregando ? "Salvando no Banco..." : "🚨 Disparar e Salvar Chamado SOS"}
-              </Text>
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* ABA 4: PERFIL DO AGENTE */}
-        {aba === "PERFIL" && (
-          <View style={styles.card}>
-            <View style={styles.profileCenter}>
-              <View style={styles.agentAvatar}>
-                <Text style={styles.agentAvatarText}>{nomeAgente.charAt(0).toUpperCase()}</Text>
+                ) : (
+                  abrigos.map((ab) => (
+                    <View key={ab.id} style={styles.shelterCard}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={styles.shelterName}>{ab.nome}</Text>
+                        <Text style={styles.shelterSub}>
+                          📍 {ab.recurso}
+                        </Text>
+                      </View>
+                      <TouchableOpacity
+                        style={[
+                          styles.statusPill,
+                          ab.status === "ABERTO" && { backgroundColor: "#122A1A", borderColor: "#00FF66" },
+                          ab.status === "LOTADO" && { backgroundColor: "#2A2212", borderColor: "#F59E0B" },
+                          ab.status === "INACESSIVEL" && { backgroundColor: "#2A121A", borderColor: "#FF0055" },
+                        ]}
+                        onPress={() => alternarStatusAbrigo(ab.id)}
+                      >
+                        <Text style={styles.statusPillText}>{ab.status}</Text>
+                      </TouchableOpacity>
+                    </View>
+                  ))
+                )}
               </View>
-              <Text style={styles.profileName}>{nomeAgente}</Text>
-              <Text style={styles.profileRole}>{orgaoAgente}</Text>
             </View>
+          )}
 
-            <View style={styles.profileInfoBox}>
-              <Text style={styles.profileLine}>🪪 Matrícula Funcional: {matriculaAgente}</Text>
-              <Text style={styles.profileLine}>📧 E-mail: {userData?.email || "admin@defesacivil.gov.br"}</Text>
-              <Text style={styles.profileLine}>📡 Setor: Centro de Controle Operacional (CCO)</Text>
+          {/* ABA 2: EVENTOS */}
+          {aba === "EVENTOS" && (
+            <View style={{ width: "100%" }}>
+              <View style={styles.rowBetween}>
+                <Text style={styles.sectionTitle}>📋 Gestão de Eventos & Auditoria ({listaEventos.length})</Text>
+                {carregando && <ActivityIndicator size="small" color="#00FF66" />}
+              </View>
+
+              {listaEventos.length === 0 ? (
+                <Text style={{ color: "#666677", textAlign: "center", marginTop: 20 }}>
+                  Nenhum evento registrado no banco.
+                </Text>
+              ) : (
+                listaEventos.map((ev, index) => (
+                  <View key={`evento-${ev.id || index}`} style={styles.card}>
+                    <View style={styles.rowBetween}>
+                      <Text
+                        style={[
+                          styles.badgeStatus,
+                          (ev.status === "CONFIRMADO" || ev.nivelConfianca === "100%") ? styles.badgeGreen : styles.badgeAmber,
+                        ]}
+                      >
+                        {(ev.status === "CONFIRMADO" || ev.nivelConfianca === "100%") ? "✔ CONFIRMADO" : "⏳ EM VALIDAÇÃO"}
+                      </Text>
+                      <Text style={styles.badgeCyan}>Confiança: {ev.nivelConfianca || "100%"}</Text>
+                    </View>
+
+                    <Text style={styles.cardTitle}>{ev.titulo}</Text>
+                    <Text style={styles.infoText}>📍 Endereço / Local: {ev.endereco || ev.local}</Text>
+                    <Text style={styles.infoText}>📡 Origem: {ev.origemDado || "Defesa Civil"} | Severidade: {ev.nivelPrioridade || "ALTO"}</Text>
+                    <Text style={styles.infoText}>📝 {ev.descricao}</Text>
+
+                    <View style={styles.valActionsRow}>
+                      <TouchableOpacity
+                        style={[styles.valBtn, { backgroundColor: "#00FF66" }]}
+                        onPress={() => validarEvento(ev.id, true)}
+                      >
+                        <Text style={{ color: "#0B0B0E", fontWeight: "bold", fontSize: 12 }}>
+                          ✅ Confirmar
+                        </Text>
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        style={[styles.valBtn, { backgroundColor: "#2A121A", borderWidth: 1, borderColor: "#FF0055" }]}
+                        onPress={() => validarEvento(ev.id, false)}
+                      >
+                        <Text style={{ color: "#FF0055", fontWeight: "bold", fontSize: 12 }}>
+                          ✕ Negar / Deletar
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                ))
+              )}
             </View>
+          )}
 
-            <TouchableOpacity
-              style={styles.shiftBtn}
-              onPress={() => setEmPlantao(!emPlantao)}
-            >
-              <Text style={styles.shiftBtnText}>
-                {emPlantao ? "⏸️ Pausar Turno de Plantão" : "▶️ Iniciar Turno de Plantão"}
+          {/* ABA 3: EMITIR */}
+          {aba === "EMITIR" && (
+            <View style={[styles.card, { maxWidth: 600, alignSelf: "center", width: "100%" }]}>
+              <Text style={styles.sectionTitle}>📢 Emitir Chamado SOS (Salvar em chamadosSOS)</Text>
+              <Text style={styles.helperText}>
+                Emitir um chamado oficial registrará os dados diretamente na tabela de chamados SOS do backend.
               </Text>
-            </TouchableOpacity>
 
-            <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
-              <Text style={styles.logoutFullText}>Encerrar Sessão Operacional</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              <Text style={styles.inputLabel}>NÍVEL DE SEVERIDADE / ACIONAMENTO</Text>
+              <View style={styles.rowGap}>
+                {(["CRÍTICO", "ALTO", "MÉDIO"] as const).map((niv) => (
+                  <TouchableOpacity
+                    key={niv}
+                    style={[styles.sevChip, novaSeveridade === niv && styles.sevChipActive]}
+                    onPress={() => setNovaSeveridade(niv)}
+                  >
+                    <Text style={styles.sevChipText}>{niv}</Text>
+                  </TouchableOpacity>
+                ))}
+              </View>
+
+              <Text style={styles.inputLabel}>TÍTULO DO CHAMADO</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Alagamento Severo / Queda de Árvore"
+                placeholderTextColor="#666677"
+                value={novoTitulo}
+                onChangeText={setNovoTitulo}
+              />
+
+              <Text style={styles.inputLabel}>REGIÃO OU VIA AFETADA</Text>
+              <TextInput
+                style={styles.input}
+                placeholder="Ex: Av. Paulista, altura nº 1200"
+                placeholderTextColor="#666677"
+                value={novaRegiao}
+                onChangeText={setNovaRegiao}
+              />
+
+              <TouchableOpacity 
+                style={[styles.emitBtn, carregando && { opacity: 0.7 }]} 
+                onPress={emitirAlertaOficial}
+                disabled={carregando}
+              >
+                <Text style={styles.emitBtnText}>
+                  {carregando ? "Salvando no Banco..." : "🚨 Disparar e Salvar Chamado SOS"}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* ABA 4: PERFIL DO AGENTE */}
+          {aba === "PERFIL" && (
+            <View style={[styles.card, { maxWidth: 500, alignSelf: "center", width: "100%" }]}>
+              <View style={styles.profileCenter}>
+                <View style={styles.agentAvatar}>
+                  <Text style={styles.agentAvatarText}>{nomeAgente.charAt(0).toUpperCase()}</Text>
+                </View>
+                <Text style={styles.profileName}>{nomeAgente}</Text>
+                <Text style={styles.profileRole}>{orgaoAgente}</Text>
+              </View>
+
+              <View style={styles.profileInfoBox}>
+                <Text style={styles.profileLine}>🪪 Matrícula Funcional: {matriculaAgente}</Text>
+                <Text style={styles.profileLine}>📧 E-mail: {userData?.email || "admin@defesacivil.gov.br"}</Text>
+                <Text style={styles.profileLine}>📡 Setor: Centro de Controle Operacional (CCO)</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.shiftBtn}
+                onPress={() => setEmPlantao(!emPlantao)}
+              >
+                <Text style={styles.shiftBtnText}>
+                  {emPlantao ? "⏸️ Pausar Turno de Plantão" : "▶️ Iniciar Turno de Plantão"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
+                <Text style={styles.logoutFullText}>Encerrar Sessão Operacional</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* MENU INFERIOR DO AGENTE */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("OPERACOES")}>
-          <Text style={[styles.tabIcon, aba === "OPERACOES" && styles.tabActive]}>🚨</Text>
-          <Text style={[styles.tabText, aba === "OPERACOES" && styles.tabActive]}>Operações</Text>
-        </TouchableOpacity>
+      <View style={styles.bottomBarWrapper}>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("OPERACOES")}>
+            <Text style={[styles.tabIcon, aba === "OPERACOES" && styles.tabActive]}>🚨</Text>
+            <Text style={[styles.tabText, aba === "OPERACOES" && styles.tabActive]}>Operações</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EVENTOS")}>
-          <Text style={[styles.tabIcon, aba === "EVENTOS" && styles.tabActive]}>📋</Text>
-          <Text style={[styles.tabText, aba === "EVENTOS" && styles.tabActive]}>Eventos</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EVENTOS")}>
+            <Text style={[styles.tabIcon, aba === "EVENTOS" && styles.tabActive]}>📋</Text>
+            <Text style={[styles.tabText, aba === "EVENTOS" && styles.tabActive]}>Eventos</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EMITIR")}>
-          <Text style={[styles.tabIcon, aba === "EMITIR" && styles.tabActive]}>📢</Text>
-          <Text style={[styles.tabText, aba === "EMITIR" && styles.tabActive]}>Emitir</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("EMITIR")}>
+            <Text style={[styles.tabIcon, aba === "EMITIR" && styles.tabActive]}>📢</Text>
+            <Text style={[styles.tabText, aba === "EMITIR" && styles.tabActive]}>Emitir</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("PERFIL")}>
-          <Text style={[styles.tabIcon, aba === "PERFIL" && styles.tabActive]}>👤</Text>
-          <Text style={[styles.tabText, aba === "PERFIL" && styles.tabActive]}>Perfil</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("PERFIL")}>
+            <Text style={[styles.tabIcon, aba === "PERFIL" && styles.tabActive]}>👤</Text>
+            <Text style={[styles.tabText, aba === "PERFIL" && styles.tabActive]}>Perfil</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -483,16 +495,22 @@ export function DashboardAdminScreen({ userData, onLogout }: DashboardAdminProps
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0B0B0E" },
-  header: {
+  headerWrapper: {
     backgroundColor: "#141419",
+    borderBottomWidth: 1,
+    borderBottomColor: "#22222E",
+    width: "100%",
+    alignItems: "center",
+  },
+  header: {
+    width: "100%",
+    maxWidth: 1000,
     paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#22222E",
   },
   logo: { fontSize: 21, fontWeight: "bold", color: "#FFFFFF" },
   subtitle: { color: "#888899", fontSize: 12, marginTop: 4 },
@@ -508,7 +526,22 @@ const styles = StyleSheet.create({
   },
   kpiNumber: { color: "#FF0055", fontWeight: "bold", fontSize: 15 },
   kpiLabel: { color: "#888899", fontSize: 9 },
-  scrollContent: { padding: 16, paddingBottom: 24 },
+  
+  scrollContent: { padding: 16, paddingBottom: 40, alignItems: "center" },
+  contentContainer: {
+    width: "100%",
+    maxWidth: 1000,
+  },
+  gridContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+  gridColumn: {
+    flex: 1,
+    minWidth: 300,
+  },
+
   sectionTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold", marginTop: 8, marginBottom: 10 },
   helperText: { color: "#888899", fontSize: 12, marginBottom: 12 },
   card: {
@@ -689,11 +722,18 @@ const styles = StyleSheet.create({
     borderColor: "#FF0055",
   },
   logoutFullText: { color: "#FF0055", fontWeight: "bold", fontSize: 13 },
-  bottomBar: {
-    height: 64,
+  
+  bottomBarWrapper: {
     backgroundColor: "#141419",
     borderTopWidth: 1,
     borderTopColor: "#22222E",
+    width: "100%",
+    alignItems: "center",
+  },
+  bottomBar: {
+    width: "100%",
+    maxWidth: 600,
+    height: 64,
     flexDirection: "row",
   },
   tabBtn: { flex: 1, justifyContent: "center", alignItems: "center" },

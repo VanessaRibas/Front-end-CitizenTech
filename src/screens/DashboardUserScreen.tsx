@@ -161,7 +161,6 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
       setEventos(dadosEventos || []);
       setAlertas(dadosAlertas || []);
 
-      // Pega o chamado SOS mais recente cadastrado
       if (dadosSos && dadosSos.length > 0) {
         const ordenados = [...dadosSos].sort((a, b) => {
           const dataA = new Date(a.dataHora || 0).getTime();
@@ -170,7 +169,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           return (b.id || 0) - (a.id || 0);
         });
         setChamadoSosRecente(ordenados[0]);
-        setMostrarAlertaExtremo(true); // Abre automaticamente ao carregar
+        setMostrarAlertaExtremo(true);
       } else {
         setChamadoSosRecente(null);
         setMostrarAlertaExtremo(false);
@@ -295,7 +294,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
         </TouchableOpacity>
       </View>
 
-      {/* 🚨 POP-UP CENTRALIZADO NO TOPO DE TUDO (ESTILO ALERTA GOVERNAMENTAL COM BORDA PISCANDO) */}
+      {/* 🚨 POP-UP CENTRALIZADO NO TOPO */}
       {mostrarAlertaExtremo && chamadoSosRecente && (
         <View style={styles.govOverlayModal}>
           <Animated.View style={[styles.govAlertBox, { opacity: pulseAnim }]}>
@@ -330,349 +329,352 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
       {tela === "INICIO" ? (
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          {/* CABEÇALHO COM O SINO DE NOTIFICAÇÃO */}
-          <View style={styles.header}>
-            <View>
-              <Text style={styles.logo}>CitizenTech</Text>
-              <Text style={styles.headerSubtitle}>Mobilidade inteligente para todos</Text>
-            </View>
-
-            <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-              {/* BOTÃO SINO DE NOTIFICAÇÕES */}
-              <TouchableOpacity
-                style={styles.bellBtn}
-                onPress={() => setModalNotificacoesVisible(true)}
-              >
-                <Text style={{ fontSize: 18 }}>🔔</Text>
-                {totalNotificacoes > 0 && (
-                  <View style={styles.badgeCount}>
-                    <Text style={styles.badgeCountText}>{totalNotificacoes}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.reportHeaderBtn}
-                onPress={() => setModalReportVisible(true)}
-              >
-                <Text style={styles.reportHeaderText}>+ Reportar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sosHeaderBtn}
-                onPress={acionarSOS}
-              >
-                <Text style={styles.sosHeaderText}>SOS</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity style={styles.avatar} onPress={() => setTela("PERFIL")}>
-                <Text style={styles.avatarText}>{nomeUsuario.charAt(0).toUpperCase()}</Text>
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          {/* BOAS-VINDAS */}
-          <View style={styles.welcome}>
-            <Text style={styles.welcomeTitle}>Olá, {nomeUsuario}! 👋</Text>
-            <Text style={styles.welcomeSubtitle}>Vamos encontrar um caminho mais seguro?</Text>
-          </View>
-
-          {/* BOTÃO PARA REEXIBIR O ALERTA GOVERNAMENTAL CASO FECHADO */}
-          {chamadoSosRecente && !mostrarAlertaExtremo && (
-            <TouchableOpacity
-              style={styles.reopenAlertBanner}
-              onPress={() => setMostrarAlertaExtremo(true)}
-            >
-              <Text style={{ fontSize: 18 }}>🚨</Text>
-              <View style={{ flex: 1, marginLeft: 10 }}>
-                <Text style={styles.reopenAlertTitle}>Alerta Extremo da Defesa Civil Ativo</Text>
-                <Text style={styles.reopenAlertSub}>Toque para visualizar aviso de segurança</Text>
-              </View>
-              <Text style={{ color: "#FF0055", fontWeight: "bold" }}>Exibir ➔</Text>
-            </TouchableOpacity>
-          )}
-
-          {/* 4 TIPOS DE ROTAS ACESSÍVEIS */}
-          <View style={styles.routeChipsRow}>
-            {(["CASA", "ABRIGO", "REDE", "DESVIO"] as TipoRota[]).map((r) => (
-              <TouchableOpacity
-                key={r}
-                style={[styles.routeChip, tipoRota === r && styles.routeChipActive]}
-                onPress={() => selecionarTipoRota(r)}
-              >
-                <Text style={[styles.routeChipText, tipoRota === r && { color: "#FFFFFF" }]}>
-                  {r === "CASA" && "🏠 Casa"}
-                  {r === "ABRIGO" && "🏢 Abrigo"}
-                  {r === "REDE" && "🤝 Apoio"}
-                  {r === "DESVIO" && "🗺️ Desvio"}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </View>
-
-          {/* BUSCA */}
-          <View style={styles.searchCard}>
-            <Text style={styles.cardTitle}>Para onde vamos?</Text>
-            <View style={styles.locationRow}>
-              <View style={styles.locationIndicator}>
-                <View style={styles.originDot} />
-                <View style={styles.locationLine} />
-                <View style={styles.destinationDot} />
+          <View style={styles.contentWrapper}>
+            {/* CABEÇALHO COM O SINO DE NOTIFICAÇÃO */}
+            <View style={styles.header}>
+              <View>
+                <Text style={styles.logo}>CitizenTech</Text>
+                <Text style={styles.headerSubtitle}>Mobilidade inteligente para todos</Text>
               </View>
 
-              <View style={styles.locationInputs}>
-                <Text style={styles.locationLabel}>ORIGEM</Text>
-                <Text style={styles.locationValue}>Minha localização atual</Text>
-                <View style={styles.inputDivider} />
-                <Text style={styles.locationLabel}>{mapaAtual.tituloDestino}</Text>
-                <TextInput
-                  value={destino}
-                  onChangeText={setDestino}
-                  placeholder={mapaAtual.placeholderDestino}
-                  placeholderTextColor="#666677"
-                  style={styles.destinationInput}
-                />
+              <View style={styles.headerActions}>
+                <TouchableOpacity
+                  style={styles.bellBtn}
+                  onPress={() => setModalNotificacoesVisible(true)}
+                >
+                  <Text style={{ fontSize: 18 }}>🔔</Text>
+                  {totalNotificacoes > 0 && (
+                    <View style={styles.badgeCount}>
+                      <Text style={styles.badgeCountText}>{totalNotificacoes}</Text>
+                    </View>
+                  )}
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.reportHeaderBtn}
+                  onPress={() => setModalReportVisible(true)}
+                >
+                  <Text style={styles.reportHeaderText}>+ Reportar</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.sosHeaderBtn}
+                  onPress={acionarSOS}
+                >
+                  <Text style={styles.sosHeaderText}>SOS</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity style={styles.avatar} onPress={() => setTela("PERFIL")}>
+                  <Text style={styles.avatarText}>{nomeUsuario.charAt(0).toUpperCase()}</Text>
+                </TouchableOpacity>
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.searchButton}
-              onPress={() => setRotaAtualizada(true)}
-            >
-              <Text style={styles.searchButtonText}>Calcular Rota Adaptada →</Text>
-            </TouchableOpacity>
+            {/* BOAS-VINDAS */}
+            <View style={styles.welcome}>
+              <Text style={styles.welcomeTitle}>Olá, {nomeUsuario}! 👋</Text>
+              <Text style={styles.welcomeSubtitle}>Vamos encontrar um caminho mais seguro?</Text>
+            </View>
 
-            {rotaAtualizada && (
-              <Text style={styles.searchFeedback}>
-                ✓ Rota ({tipoRota}) recalculada e sincronizada no mapa abaixo!
-              </Text>
+            {/* BANNER REEXIBIR ALERTA */}
+            {chamadoSosRecente && !mostrarAlertaExtremo && (
+              <TouchableOpacity
+                style={styles.reopenAlertBanner}
+                onPress={() => setMostrarAlertaExtremo(true)}
+              >
+                <Text style={{ fontSize: 18 }}>🚨</Text>
+                <View style={{ flex: 1, marginLeft: 10 }}>
+                  <Text style={styles.reopenAlertTitle}>Alerta Extremo da Defesa Civil Ativo</Text>
+                  <Text style={styles.reopenAlertSub}>Toque para visualizar aviso de segurança</Text>
+                </View>
+                <Text style={{ color: "#FF0055", fontWeight: "bold" }}>Exibir ➔</Text>
+              </TouchableOpacity>
             )}
-          </View>
 
-          {/* MAPA VETORIAL DINÂMICO */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Mapa: Rota {tipoRota}</Text>
-            <View style={styles.profileBadgeTag}>
-              <Text style={styles.profileBadgeTagText}>
-                {perfil === "CADEIRANTE" ? "♿ Modo Cadeirante" : "🦯 Modo Def. Visual"}
-              </Text>
+            {/* 4 TIPOS DE ROTAS ACESSÍVEIS */}
+            <View style={styles.routeChipsRow}>
+              {(["CASA", "ABRIGO", "REDE", "DESVIO"] as TipoRota[]).map((r) => (
+                <TouchableOpacity
+                  key={r}
+                  style={[styles.routeChip, tipoRota === r && styles.routeChipActive]}
+                  onPress={() => selecionarTipoRota(r)}
+                >
+                  <Text style={[styles.routeChipText, tipoRota === r && { color: "#FFFFFF" }]}>
+                    {r === "CASA" && "🏠 Casa"}
+                    {r === "ABRIGO" && "🏢 Abrigo"}
+                    {r === "REDE" && "🤝 Apoio"}
+                    {r === "DESVIO" && "🗺️ Desvio"}
+                  </Text>
+                </TouchableOpacity>
+              ))}
             </View>
-          </View>
 
-          <View style={styles.mapContainer}>
-            <View style={styles.map}>
-              <Svg width="100%" height="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
-                <Rect x="0" y="0" width="400" height="220" fill="#13131A" />
-                <Rect x="20" y="20" width="90" height="65" rx="8" fill="#1C1C26" />
-                <Rect x="140" y="20" width="110" height="65" rx="8" fill="#1C1C26" />
-                <Rect x="280" y="20" width="100" height="65" rx="8" fill="#1C1C26" />
-                <Rect x="20" y="115" width="90" height="85" rx="8" fill="#1C1C26" />
-                <Rect x="140" y="115" width="110" height="85" rx="8" fill="#1C1C26" />
-                <Rect x="280" y="115" width="100" height="85" rx="8" fill="#1C1C26" />
+            {/* BUSCA */}
+            <View style={styles.searchCard}>
+              <Text style={styles.cardTitle}>Para onde vamos?</Text>
+              <View style={styles.locationRow}>
+                <View style={styles.locationIndicator}>
+                  <View style={styles.originDot} />
+                  <View style={styles.locationLine} />
+                  <View style={styles.destinationDot} />
+                </View>
 
-                <Line x1="0" y1="100" x2="400" y2="100" stroke="#252533" strokeWidth="16" />
-                <Line x1="125" y1="0" x2="125" y2="220" stroke="#252533" strokeWidth="14" />
-                <Line x1="265" y1="0" x2="265" y2="220" stroke="#252533" strokeWidth="14" />
-
-                <Line x1="0" y1="100" x2="400" y2="100" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
-                <Line x1="125" y1="0" x2="125" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
-                <Line x1="265" y1="0" x2="265" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
-
-                <Circle
-                  cx={mapaAtual.riscoCx}
-                  cy={mapaAtual.riscoCy}
-                  r="26"
-                  fill="rgba(255, 0, 85, 0.18)"
-                  stroke="#FF0055"
-                  strokeWidth="1.5"
-                  strokeDasharray="4,4"
-                />
-
-                {perfil === "CADEIRANTE" ? (
-                  <G>
-                    <Path
-                      d={mapaAtual.caminhoCadeirante}
-                      stroke="rgba(0, 255, 102, 0.25)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <Path
-                      d={mapaAtual.caminhoCadeirante}
-                      stroke="#00FF66"
-                      strokeWidth="4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </G>
-                ) : (
-                  <G>
-                    <Path
-                      d={mapaAtual.caminhoVisual}
-                      stroke="rgba(0, 212, 255, 0.25)"
-                      strokeWidth="10"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                    <Path
-                      d={mapaAtual.caminhoVisual}
-                      stroke="#00D4FF"
-                      strokeWidth="4"
-                      strokeDasharray="6,4"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      fill="none"
-                    />
-                  </G>
-                )}
-              </Svg>
-
-              <View style={[styles.mapPin, styles.pinStart, { left: "13.7%", top: "75%" }]}>
-                <Text style={styles.mapPointText}>A</Text>
+                <View style={styles.locationInputs}>
+                  <Text style={styles.locationLabel}>ORIGEM</Text>
+                  <Text style={styles.locationValue}>Minha localização atual</Text>
+                  <View style={styles.inputDivider} />
+                  <Text style={styles.locationLabel}>{mapaAtual.tituloDestino}</Text>
+                  <TextInput
+                    value={destino}
+                    onChangeText={setDestino}
+                    placeholder={mapaAtual.placeholderDestino}
+                    placeholderTextColor="#666677"
+                    style={styles.destinationInput}
+                  />
+                </View>
               </View>
-              <View
-                style={[
-                  styles.mapPin,
-                  styles.pinEnd,
-                  { left: mapaAtual.pinBLeft, top: mapaAtual.pinBTop },
-                ]}
+
+              <TouchableOpacity
+                style={styles.searchButton}
+                onPress={() => setRotaAtualizada(true)}
               >
-                <Text style={styles.mapPointText}>B</Text>
-              </View>
-              <View
-                style={[
-                  styles.mapRiskBadge,
-                  { left: mapaAtual.riscoLeft, top: mapaAtual.riscoTop },
-                ]}
-              >
-                <Text style={{ fontSize: 13 }}>⚠️</Text>
-              </View>
+                <Text style={styles.searchButtonText}>Calcular Rota Adaptada →</Text>
+              </TouchableOpacity>
 
-              <View style={styles.mapInfoLabel}>
-                <Text style={styles.mapInfoLabelText}>
-                  {perfil === "CADEIRANTE"
-                    ? mapaAtual.etiquetaCadeirante
-                    : mapaAtual.etiquetaVisual}
+              {rotaAtualizada && (
+                <Text style={styles.searchFeedback}>
+                  ✓ Rota ({tipoRota}) recalculada e sincronizada no mapa abaixo!
+                </Text>
+              )}
+            </View>
+
+            {/* MAPA VETORIAL DINÂMICO */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Mapa: Rota {tipoRota}</Text>
+              <View style={styles.profileBadgeTag}>
+                <Text style={styles.profileBadgeTagText}>
+                  {perfil === "CADEIRANTE" ? "♿ Modo Cadeirante" : "🦯 Modo Def. Visual"}
                 </Text>
               </View>
             </View>
 
-            <View style={styles.mapFooter}>
-              <View style={styles.legend}>
+            <View style={styles.mapContainer}>
+              <View style={styles.map}>
+                <Svg width="100%" height="100%" viewBox="0 0 400 220" preserveAspectRatio="none">
+                  <Rect x="0" y="0" width="400" height="220" fill="#13131A" />
+                  <Rect x="20" y="20" width="90" height="65" rx="8" fill="#1C1C26" />
+                  <Rect x="140" y="20" width="110" height="65" rx="8" fill="#1C1C26" />
+                  <Rect x="280" y="20" width="100" height="65" rx="8" fill="#1C1C26" />
+                  <Rect x="20" y="115" width="90" height="85" rx="8" fill="#1C1C26" />
+                  <Rect x="140" y="115" width="110" height="85" rx="8" fill="#1C1C26" />
+                  <Rect x="280" y="115" width="100" height="85" rx="8" fill="#1C1C26" />
+
+                  <Line x1="0" y1="100" x2="400" y2="100" stroke="#252533" strokeWidth="16" />
+                  <Line x1="125" y1="0" x2="125" y2="220" stroke="#252533" strokeWidth="14" />
+                  <Line x1="265" y1="0" x2="265" y2="220" stroke="#252533" strokeWidth="14" />
+
+                  <Line x1="0" y1="100" x2="400" y2="100" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
+                  <Line x1="125" y1="0" x2="125" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
+                  <Line x1="265" y1="0" x2="265" y2="220" stroke="#36364A" strokeWidth="1.5" strokeDasharray="8,8" />
+
+                  <Circle
+                    cx={mapaAtual.riscoCx}
+                    cy={mapaAtual.riscoCy}
+                    r="26"
+                    fill="rgba(255, 0, 85, 0.18)"
+                    stroke="#FF0055"
+                    strokeWidth="1.5"
+                    strokeDasharray="4,4"
+                  />
+
+                  {perfil === "CADEIRANTE" ? (
+                    <G>
+                      <Path
+                        d={mapaAtual.caminhoCadeirante}
+                        stroke="rgba(0, 255, 102, 0.25)"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                      <Path
+                        d={mapaAtual.caminhoCadeirante}
+                        stroke="#00FF66"
+                        strokeWidth="4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </G>
+                  ) : (
+                    <G>
+                      <Path
+                        d={mapaAtual.caminhoVisual}
+                        stroke="rgba(0, 212, 255, 0.25)"
+                        strokeWidth="10"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                      <Path
+                        d={mapaAtual.caminhoVisual}
+                        stroke="#00D4FF"
+                        strokeWidth="4"
+                        strokeDasharray="6,4"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        fill="none"
+                      />
+                    </G>
+                  )}
+                </Svg>
+
+                <View style={[styles.mapPin, styles.pinStart, { left: "13.7%", top: "75%" }]}>
+                  <Text style={styles.mapPointText}>A</Text>
+                </View>
                 <View
                   style={[
-                    styles.legendIndicator,
-                    { backgroundColor: perfil === "CADEIRANTE" ? "#00FF66" : "#00D4FF" },
+                    styles.mapPin,
+                    styles.pinEnd,
+                    { left: mapaAtual.pinBLeft, top: mapaAtual.pinBTop },
                   ]}
-                />
-                <Text style={styles.legendText}>
-                  {perfil === "CADEIRANTE"
-                    ? mapaAtual.legendaCadeirante
-                    : mapaAtual.legendaVisual}
-                </Text>
+                >
+                  <Text style={styles.mapPointText}>B</Text>
+                </View>
+                <View
+                  style={[
+                    styles.mapRiskBadge,
+                    { left: mapaAtual.riscoLeft, top: mapaAtual.riscoTop },
+                  ]}
+                >
+                  <Text style={{ fontSize: 13 }}>⚠️</Text>
+                </View>
+
+                <View style={styles.mapInfoLabel}>
+                  <Text style={styles.mapInfoLabelText}>
+                    {perfil === "CADEIRANTE"
+                      ? mapaAtual.etiquetaCadeirante
+                      : mapaAtual.etiquetaVisual}
+                  </Text>
+                </View>
+              </View>
+
+              <View style={styles.mapFooter}>
+                <View style={styles.legend}>
+                  <View
+                    style={[
+                      styles.legendIndicator,
+                      { backgroundColor: perfil === "CADEIRANTE" ? "#00FF66" : "#00D4FF" },
+                    ]}
+                  />
+                  <Text style={styles.legendText}>
+                    {perfil === "CADEIRANTE"
+                      ? mapaAtual.legendaCadeirante
+                      : mapaAtual.legendaVisual}
+                  </Text>
+                </View>
               </View>
             </View>
-          </View>
 
-          {/* BANNER DE COLABORAÇÃO COMUNITÁRIA */}
-          <TouchableOpacity
-            style={styles.communityBanner}
-            onPress={() => setModalReportVisible(true)}
-          >
-            <View style={{ flex: 1 }}>
-              <Text style={styles.communityBannerTitle}>📢 Viu algum risco ou bloqueio na via?</Text>
-              <Text style={styles.communityBannerSub}>
-                Ajude outros usuários reportando alagamentos ou rampas obstruídas.
-              </Text>
-            </View>
-            <View style={styles.communityBannerBtn}>
-              <Text style={styles.communityBannerBtnText}>+ Reportar Risco</Text>
-            </View>
-          </TouchableOpacity>
+            {/* BANNER DE COLABORAÇÃO COMUNITÁRIA */}
+            <TouchableOpacity
+              style={styles.communityBanner}
+              onPress={() => setModalReportVisible(true)}
+            >
+              <View style={{ flex: 1 }}>
+                <Text style={styles.communityBannerTitle}>📢 Viu algum risco ou bloqueio na via?</Text>
+                <Text style={styles.communityBannerSub}>
+                  Ajude outros usuários reportando alagamentos ou rampas obstruídas.
+                </Text>
+              </View>
+              <View style={styles.communityBannerBtn}>
+                <Text style={styles.communityBannerBtnText}>+ Reportar Risco</Text>
+              </View>
+            </TouchableOpacity>
 
-          {/* RESUMO RÁPIDO */}
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Visão geral</Text>
-            <Text style={styles.liveLabel}>{conectado ? "● DADOS DA API" : "● MODO OFFLINE"}</Text>
-          </View>
+            {/* RESUMO RÁPIDO */}
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Visão geral</Text>
+              <Text style={styles.liveLabel}>{conectado ? "● DADOS DA API" : "● MODO OFFLINE"}</Text>
+            </View>
 
-          <View style={styles.summaryRow}>
-            <View style={styles.summaryCard}>
-              <Text style={styles.summaryNumber}>
-                {totalNotificacoes < 10 ? `0${totalNotificacoes}` : totalNotificacoes}
-              </Text>
-              <Text style={styles.summaryLabel}>Total Registros</Text>
-            </View>
-            <View style={styles.summaryCard}>
-              <Text style={[styles.summaryNumber, { color: "#FF0055" }]}>
-                {eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length < 10
-                  ? `0${eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length}`
-                  : eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length}
-              </Text>
-              <Text style={styles.summaryLabel}>Alerta alto</Text>
-            </View>
-            <View style={styles.summaryCard}>
-              <Text style={[styles.summaryNumber, { color: "#00FF66" }]}>
-                {eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length < 10
-                  ? `0${eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length}`
-                  : eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length}
-              </Text>
-              <Text style={styles.summaryLabel}>Outros riscos</Text>
+            <View style={styles.summaryRow}>
+              <View style={styles.summaryCard}>
+                <Text style={styles.summaryNumber}>
+                  {totalNotificacoes < 10 ? `0${totalNotificacoes}` : totalNotificacoes}
+                </Text>
+                <Text style={styles.summaryLabel}>Total Registros</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <Text style={[styles.summaryNumber, { color: "#FF0055" }]}>
+                  {eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length < 10
+                    ? `0${eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length}`
+                    : eventos.filter((e) => e.prioridade === "ALTA" || e.nivelPrioridade === "ALTA").length}
+                </Text>
+                <Text style={styles.summaryLabel}>Alerta alto</Text>
+              </View>
+              <View style={styles.summaryCard}>
+                <Text style={[styles.summaryNumber, { color: "#00FF66" }]}>
+                  {eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length < 10
+                    ? `0${eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length}`
+                    : eventos.filter((e) => e.prioridade !== "ALTA" && e.nivelPrioridade !== "ALTA").length}
+                </Text>
+                <Text style={styles.summaryLabel}>Outros riscos</Text>
+              </View>
             </View>
           </View>
         </ScrollView>
       ) : (
         /* TELA DE PERFIL */
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
-          <View style={styles.profileHeader}>
-            <Text style={styles.profileHeaderTitle}>Meu perfil</Text>
-            <View style={styles.largeAvatar}>
-              <Text style={styles.largeAvatarText}>{nomeUsuario.charAt(0).toUpperCase()}</Text>
+          <View style={styles.contentWrapper}>
+            <View style={styles.profileHeader}>
+              <Text style={styles.profileHeaderTitle}>Meu perfil</Text>
+              <View style={styles.largeAvatar}>
+                <Text style={styles.largeAvatarText}>{nomeUsuario.charAt(0).toUpperCase()}</Text>
+              </View>
+              <Text style={styles.profileName}>{nomeUsuario}</Text>
+              <Text style={styles.profileEmail}>{userData?.email || "Usuária CitizenTech"}</Text>
             </View>
-            <Text style={styles.profileName}>{nomeUsuario}</Text>
-            <Text style={styles.profileEmail}>{userData?.email || "Usuária CitizenTech"}</Text>
-          </View>
 
-          <View style={styles.profileSection}>
-            <Text style={styles.sectionTitle}>Perfil de acessibilidade</Text>
+            <View style={styles.profileSection}>
+              <Text style={styles.sectionTitle}>Perfil de acessibilidade</Text>
 
-            <TouchableOpacity
-              style={[styles.accessibilityCard, perfil === "VISUAL" && styles.accessibilitySelected]}
-              onPress={() => setPerfil("VISUAL")}
-            >
-              <Text style={styles.accessibilityEmoji}>🦯</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.accessibilityTitle}>Deficiência visual</Text>
-                <Text style={styles.accessibilitySubtitle}>
-                  Orientação por áudio e travessias sinalizadas.
-                </Text>
-              </View>
-              <Text style={styles.check}>{perfil === "VISUAL" ? "●" : "○"}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.accessibilityCard, perfil === "VISUAL" && styles.accessibilitySelected]}
+                onPress={() => setPerfil("VISUAL")}
+              >
+                <Text style={styles.accessibilityEmoji}>🦯</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.accessibilityTitle}>Deficiência visual</Text>
+                  <Text style={styles.accessibilitySubtitle}>
+                    Orientação por áudio e travessias sinalizadas.
+                  </Text>
+                </View>
+                <Text style={styles.check}>{perfil === "VISUAL" ? "●" : "○"}</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity
-              style={[
-                styles.accessibilityCard,
-                perfil === "CADEIRANTE" && styles.accessibilitySelected,
-              ]}
-              onPress={() => setPerfil("CADEIRANTE")}
-            >
-              <Text style={styles.accessibilityEmoji}>♿</Text>
-              <View style={{ flex: 1 }}>
-                <Text style={styles.accessibilityTitle}>Mobilidade reduzida</Text>
-                <Text style={styles.accessibilitySubtitle}>
-                  Rampas, calçadas acessíveis e sem escadas.
-                </Text>
-              </View>
-              <Text style={styles.check}>{perfil === "CADEIRANTE" ? "●" : "○"}</Text>
-            </TouchableOpacity>
+              <TouchableOpacity
+                style={[
+                  styles.accessibilityCard,
+                  perfil === "CADEIRANTE" && styles.accessibilitySelected,
+                ]}
+                onPress={() => setPerfil("CADEIRANTE")}
+              >
+                <Text style={styles.accessibilityEmoji}>♿</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.accessibilityTitle}>Mobilidade reduzida</Text>
+                  <Text style={styles.accessibilitySubtitle}>
+                    Rampas, calçadas acessíveis e sem escadas.
+                  </Text>
+                </View>
+                <Text style={styles.check}>{perfil === "CADEIRANTE" ? "●" : "○"}</Text>
+              </TouchableOpacity>
 
-            <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
-              <Text style={styles.logoutFullBtnText}>Sair da Conta</Text>
-            </TouchableOpacity>
+              <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
+                <Text style={styles.logoutFullBtnText}>Sair da Conta</Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </ScrollView>
       )}
@@ -730,7 +732,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                   {eventos.map((evento) => (
                     <View key={`evento-notif-${evento.id || Math.random()}`} style={styles.eventCard}>
                       <View style={styles.eventIcon}>
-                        <Text style={{ fontSize: 21 }}>{"⚠️"}</Text>
+                        <Text style={{ fontSize: 21 }}>⚠️</Text>
                       </View>
                       <View style={styles.eventContent}>
                         <View style={styles.eventTitleRow}>
@@ -757,19 +759,8 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                         <Text style={{ fontSize: 21 }}>{alerta.tipo || "🚨"}</Text>
                       </View>
                       <View style={styles.eventContent}>
-                        <View style={styles.eventTitleRow}>
-                          <Text style={styles.eventTitle}>{alerta.titulo || alerta.nome || "Alerta sem título"}</Text>
-                          <View style={[styles.eventPriority, { backgroundColor: "#12242A", borderColor: "#00D4FF" }]}>
-                            <Text style={[styles.eventPriorityText, { color: "#00D4FF" }]}>
-                              {alerta.nivelPrioridade || alerta.prioridade || "ALTO"}
-                            </Text>
-                          </View>
-                        </View>
-                        <Text style={styles.eventDescription}>{alerta.descricao || "Sem descrição informada."}</Text>
-                        <Text style={styles.eventAddress}>📍 {alerta.endereco || "Local não informado"}</Text>
-                        <Text style={styles.eventTime}>
-                          Origem: {alerta.origemDado || alerta.origem || "Sistema"} • Confiança: {alerta.nivelConfianca || alerta.confianca || "Alta"}
-                        </Text>
+                        <Text style={styles.eventTitle}>{alerta.titulo || "Alerta Oficial"}</Text>
+                        <Text style={styles.eventDescription}>{alerta.descricao || alerta.mensagem}</Text>
                       </View>
                     </View>
                   ))}
@@ -820,7 +811,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             <Text style={styles.modalLabel}>LOCALIZAÇÃO / REFERÊNCIA</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Ex: Av. Paulista, 1200 (próx. ao metrô)"
+              placeholder="Ex: Rua Augusta, próximo à praça"
               placeholderTextColor="#666677"
               value={localReport}
               onChangeText={setLocalReport}
@@ -829,35 +820,36 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             <Text style={styles.modalLabel}>DETALHES ADICIONAIS (OPCIONAL)</Text>
             <TextInput
               style={styles.modalInput}
-              placeholder="Ex: Água subindo rápido na calçada"
+              placeholder="Ex: Água acumulada na altura do joelho"
               placeholderTextColor="#666677"
               value={descReport}
               onChangeText={setDescReport}
             />
 
             <Text style={styles.lgpdText}>
-              🔒 Seu relato será publicado com confiança inicial de 40% e auditado pela Defesa Civil.
+              🔒 Seu relato será publicado com 40% de confiança inicial para validação e auditoria da Defesa Civil.
             </Text>
 
             <TouchableOpacity style={styles.modalSubmitBtn} onPress={enviarReporteComunitario}>
-              <Text style={styles.modalSubmitText}>
-                {carregando ? "Enviando..." : "Enviar Alerta Comunitário"}
-              </Text>
+              <Text style={styles.modalSubmitText}>Publicar Alerta Comunitário</Text>
             </TouchableOpacity>
           </View>
         </View>
       </Modal>
 
-      {/* MENU INFERIOR */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.tabButton} onPress={() => setTela("INICIO")}>
-          <Text style={[styles.tabIcon, tela === "INICIO" && styles.activeTab]}>⌂</Text>
-          <Text style={[styles.tabText, tela === "INICIO" && styles.activeTab]}>Início</Text>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.tabButton} onPress={() => setTela("PERFIL")}>
-          <Text style={[styles.tabIcon, tela === "PERFIL" && styles.activeTab]}>◉</Text>
-          <Text style={[styles.tabText, tela === "PERFIL" && styles.activeTab]}>Perfil</Text>
-        </TouchableOpacity>
+      {/* BARRA DE NAVEGAÇÃO INFERIOR */}
+      <View style={styles.bottomBarWrapper}>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setTela("INICIO")}>
+            <Text style={[styles.tabIcon, tela === "INICIO" && styles.tabActive]}>🗺️</Text>
+            <Text style={[styles.tabText, tela === "INICIO" && styles.tabActive]}>Mapa & Rotas</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setTela("PERFIL")}>
+            <Text style={[styles.tabIcon, tela === "PERFIL" && styles.tabActive]}>👤</Text>
+            <Text style={[styles.tabText, tela === "PERFIL" && styles.tabActive]}>Meu Perfil</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -865,150 +857,99 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0B0B0E" },
+  
+  contentWrapper: {
+    width: "100%",
+    maxWidth: 900,
+    alignSelf: "center",
+  },
+
   connectionBar: {
+    paddingVertical: 6,
+    paddingHorizontal: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 6,
   },
-  connectionText: { color: "#0B0B0E", fontSize: 10, fontWeight: "bold" },
-  retryText: { color: "#0B0B0E", fontSize: 10, textDecorationLine: "underline", fontWeight: "bold" },
+  connectionText: { color: "#0B0B0E", fontSize: 11, fontWeight: "bold" },
+  retryText: { color: "#0B0B0E", fontSize: 11, fontWeight: "bold", textDecorationLine: "underline" },
 
-  // ESTILOS DO POP-UP ESTILO ALERTA EXTREMO DA DEFESA CIVIL (NO TOPO DE TUDO)
   govOverlayModal: {
     position: "absolute",
-    top: 0,
+    top: 40,
     left: 0,
     right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0, 0, 0, 0.75)",
     zIndex: 9999,
-    justifyContent: "center",
+    padding: 16,
     alignItems: "center",
-    paddingHorizontal: 24,
   },
   govAlertBox: {
     width: "100%",
-    maxWidth: 340,
-    backgroundColor: "#1E1E26",
+    maxWidth: 600,
+    backgroundColor: "#1B0B10",
     borderRadius: 16,
-    padding: 20,
-    borderWidth: 2.5,
+    padding: 18,
+    borderWidth: 2,
     borderColor: "#FF0055",
     shadowColor: "#FF0055",
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.8,
-    shadowRadius: 15,
+    shadowRadius: 10,
     elevation: 10,
   },
   govAlertHeaderRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 12,
+    marginBottom: 8,
   },
-  govAlertHeaderTitle: {
-    color: "#FFFFFF",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  govAlertClose: {
-    color: "#888899",
-    fontSize: 18,
-    fontWeight: "bold",
-    padding: 4,
-  },
-  govAlertBodyText: {
-    color: "#DDDDDD",
-    fontSize: 13,
-    lineHeight: 20,
-    marginBottom: 20,
-  },
-  govAlertFooterRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    borderTopWidth: 1,
-    borderTopColor: "#2E2E3E",
-    paddingTop: 12,
-  },
-  govAlertFooterTime: {
-    color: "#888899",
-    fontSize: 11,
-  },
-  govAlertOkBtn: {
-    backgroundColor: "#FF0055",
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-  },
-  govAlertOkText: {
-    color: "#FFFFFF",
-    fontWeight: "bold",
-    fontSize: 12,
-  },
+  govAlertHeaderTitle: { color: "#FF0055", fontSize: 17, fontWeight: "bold", textTransform: "uppercase" },
+  govAlertClose: { color: "#888899", fontSize: 18, fontWeight: "bold", padding: 4 },
+  govAlertBodyText: { color: "#FFFFFF", fontSize: 13, lineHeight: 20, marginBottom: 14 },
+  govAlertFooterRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
+  govAlertFooterTime: { color: "#888899", fontSize: 11 },
+  govAlertOkBtn: { backgroundColor: "#FF0055", paddingHorizontal: 16, paddingVertical: 8, borderRadius: 8 },
+  govAlertOkText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 12 },
 
-  reopenAlertBanner: {
-    marginHorizontal: 16,
-    marginBottom: 16,
-    backgroundColor: "#2A121A",
-    borderWidth: 1,
-    borderColor: "#FF0055",
-    borderRadius: 12,
-    padding: 14,
-    flexDirection: "row",
-    alignItems: "center",
-  },
-  reopenAlertTitle: {
-    color: "#FFFFFF",
-    fontSize: 13,
-    fontWeight: "bold",
-  },
-  reopenAlertSub: {
-    color: "#AAAAAA",
-    fontSize: 10,
-    marginTop: 2,
-  },
-
-  scrollContent: { paddingBottom: 20 },
+  scrollContent: { padding: 16, paddingBottom: 40 },
   header: {
-    backgroundColor: "#141419",
-    paddingHorizontal: 20,
-    paddingTop: 20,
-    paddingBottom: 20,
+    paddingTop: 10,
+    paddingBottom: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
     borderBottomWidth: 1,
-    borderBottomColor: "#22222E",
+    borderBottomColor: "#1C1C26",
+    marginBottom: 16,
   },
-  logo: { fontSize: 23, fontWeight: "bold", color: "#FFFFFF" },
-  headerSubtitle: { color: "#888899", fontSize: 11, marginTop: 4 },
+  headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  logo: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF" },
+  headerSubtitle: { color: "#888899", fontSize: 12, marginTop: 2 },
+
   bellBtn: {
+    position: "relative",
+    backgroundColor: "#1C1C26",
     width: 38,
     height: 38,
     borderRadius: 10,
-    backgroundColor: "#1C1C26",
-    borderWidth: 1,
-    borderColor: "#333344",
-    alignItems: "center",
     justifyContent: "center",
-    position: "relative",
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
   },
   badgeCount: {
     position: "absolute",
     top: -4,
     right: -4,
     backgroundColor: "#FF0055",
-    borderRadius: 8,
-    minWidth: 16,
-    height: 16,
-    alignItems: "center",
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     justifyContent: "center",
-    paddingHorizontal: 3,
+    alignItems: "center",
   },
   badgeCountText: { color: "#FFFFFF", fontSize: 9, fontWeight: "bold" },
+
   reportHeaderBtn: {
     backgroundColor: "#12242A",
     paddingHorizontal: 10,
@@ -1017,34 +958,46 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#00D4FF",
   },
-  reportHeaderText: { color: "#00D4FF", fontWeight: "bold", fontSize: 11 },
+  reportHeaderText: { color: "#00D4FF", fontSize: 11, fontWeight: "bold" },
+
   sosHeaderBtn: {
     backgroundColor: "#FF0055",
-    paddingHorizontal: 11,
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 10,
   },
-  sosHeaderText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 11 },
+  sosHeaderText: { color: "#FFFFFF", fontSize: 11, fontWeight: "bold" },
+
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: "#2A121A",
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#122A1A",
+    borderWidth: 1,
+    borderColor: "#00FF66",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  avatarText: { color: "#00FF66", fontSize: 16, fontWeight: "bold" },
+
+  welcome: { marginBottom: 16 },
+  welcomeTitle: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF" },
+  welcomeSubtitle: { color: "#888899", fontSize: 13, marginTop: 2 },
+
+  reopenAlertBanner: {
+    backgroundColor: "#1B0B10",
+    borderRadius: 12,
+    padding: 14,
+    flexDirection: "row",
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#FF0055",
-    alignItems: "center",
-    justifyContent: "center",
+    marginBottom: 16,
   },
-  avatarText: { fontSize: 17, color: "#FF0055", fontWeight: "bold" },
-  welcome: { paddingHorizontal: 20, paddingTop: 20, paddingBottom: 14 },
-  welcomeTitle: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF" },
-  welcomeSubtitle: { fontSize: 13, color: "#888899", marginTop: 4 },
-  routeChipsRow: {
-    flexDirection: "row",
-    paddingHorizontal: 16,
-    gap: 8,
-    marginBottom: 14,
-  },
+  reopenAlertTitle: { color: "#FF0055", fontSize: 13, fontWeight: "bold" },
+  reopenAlertSub: { color: "#888899", fontSize: 11, marginTop: 2 },
+
+  routeChipsRow: { flexDirection: "row", gap: 8, marginBottom: 16 },
   routeChip: {
     flex: 1,
     backgroundColor: "#141419",
@@ -1054,88 +1007,91 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#22222E",
   },
-  routeChipActive: { backgroundColor: "#2A121A", borderColor: "#FF0055" },
+  routeChipActive: { backgroundColor: "#1C1C26", borderColor: "#00FF66" },
   routeChipText: { color: "#888899", fontSize: 11, fontWeight: "bold" },
+
   searchCard: {
-    marginHorizontal: 16,
     backgroundColor: "#141419",
-    padding: 17,
-    borderRadius: 17,
+    borderRadius: 16,
+    padding: 16,
     borderWidth: 1,
     borderColor: "#22222E",
+    marginBottom: 16,
   },
-  cardTitle: { fontSize: 16, fontWeight: "bold", color: "#FFFFFF", marginBottom: 16 },
-  locationRow: { flexDirection: "row" },
-  locationIndicator: { width: 20, alignItems: "center", paddingTop: 6 },
-  originDot: { width: 11, height: 11, borderRadius: 8, backgroundColor: "#00FF66" },
-  locationLine: { width: 2, height: 37, backgroundColor: "#333344" },
-  destinationDot: { width: 11, height: 11, borderRadius: 2, backgroundColor: "#FF0055" },
-  locationInputs: { flex: 1, marginLeft: 10 },
-  locationLabel: { color: "#777788", fontSize: 9, fontWeight: "bold", letterSpacing: 1 },
-  locationValue: { fontSize: 13, color: "#CCCCDD", marginTop: 4, marginBottom: 7 },
-  inputDivider: { height: 1, backgroundColor: "#22222E", marginBottom: 7 },
-  destinationInput: { fontSize: 13, color: "#FFFFFF", paddingVertical: 4 },
+  cardTitle: { fontSize: 15, fontWeight: "bold", color: "#FFFFFF", marginBottom: 12 },
+  locationRow: { flexDirection: "row", gap: 12, marginBottom: 14 },
+  locationIndicator: { alignItems: "center", width: 14, paddingTop: 4 },
+  originDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#00FF66" },
+  locationLine: { width: 2, height: 35, backgroundColor: "#2E2E3E", marginVertical: 4 },
+  destinationDot: { width: 10, height: 10, borderRadius: 5, backgroundColor: "#00D4FF" },
+  locationInputs: { flex: 1 },
+  locationLabel: { color: "#666677", fontSize: 9, fontWeight: "bold", letterSpacing: 0.5 },
+  locationValue: { color: "#CCCCDD", fontSize: 13, marginTop: 2, marginBottom: 8 },
+  inputDivider: { height: 1, backgroundColor: "#22222E", marginVertical: 4 },
+  destinationInput: { color: "#FFFFFF", fontSize: 13, marginTop: 2, padding: 0 },
   searchButton: {
-    backgroundColor: "#FF0055",
-    borderRadius: 11,
-    padding: 14,
+    backgroundColor: "#00D4FF",
+    padding: 13,
+    borderRadius: 10,
     alignItems: "center",
-    marginTop: 15,
   },
-  searchButtonText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 14 },
-  searchFeedback: { color: "#00FF66", fontSize: 11, marginTop: 10 },
+  searchButtonText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 13 },
+  searchFeedback: { color: "#00FF66", fontSize: 11, marginTop: 8, textAlign: "center", fontWeight: "600" },
+
   sectionHeader: {
-    marginHorizontal: 18,
-    marginTop: 22,
-    marginBottom: 12,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
+    marginBottom: 10,
+    marginTop: 6,
   },
-  sectionTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "bold" },
-  liveLabel: { color: "#00FF66", fontSize: 9, fontWeight: "bold" },
+  sectionTitle: { color: "#FFFFFF", fontSize: 15, fontWeight: "bold" },
   profileBadgeTag: {
-    backgroundColor: "#1C1C26",
-    paddingHorizontal: 9,
+    backgroundColor: "#122A1A",
+    paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
     borderWidth: 1,
-    borderColor: "#333344",
+    borderColor: "#00FF66",
   },
   profileBadgeTagText: { color: "#00FF66", fontSize: 10, fontWeight: "bold" },
+  liveLabel: { color: "#00FF66", fontSize: 10, fontWeight: "bold" },
+
   mapContainer: {
-    marginHorizontal: 16,
     backgroundColor: "#141419",
     borderRadius: 16,
+    overflow: "hidden",
     borderWidth: 1,
     borderColor: "#22222E",
-    overflow: "hidden",
+    marginBottom: 16,
   },
-  map: { height: 210, width: "100%", position: "relative" },
+  map: { height: 220, position: "relative" },
   mapPin: {
     position: "absolute",
     width: 26,
     height: 26,
     borderRadius: 13,
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
     borderWidth: 2,
     borderColor: "#FFFFFF",
+    transform: [{ translateX: -13 }, { translateY: -13 }],
   },
   pinStart: { backgroundColor: "#00FF66" },
-  pinEnd: { backgroundColor: "#FF0055" },
-  mapPointText: { color: "#0B0B0E", fontSize: 11, fontWeight: "bold" },
+  pinEnd: { backgroundColor: "#00D4FF" },
   mapRiskBadge: {
     position: "absolute",
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: "#2A121A",
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: "#FF0055",
-    alignItems: "center",
     justifyContent: "center",
+    alignItems: "center",
+    transform: [{ translateX: -14 }, { translateY: -14 }],
   },
+  mapPointText: { color: "#0B0B0E", fontSize: 11, fontWeight: "bold" },
   mapInfoLabel: {
     position: "absolute",
     bottom: 10,
@@ -1146,107 +1102,204 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: "#333344",
+    borderColor: "#2E2E3E",
   },
-  mapInfoLabelText: { color: "#FFFFFF", fontSize: 11, textAlign: "center", fontWeight: "600" },
-  mapFooter: { padding: 12, backgroundColor: "#1C1C26", borderTopWidth: 1, borderTopColor: "#252533" },
+  mapInfoLabelText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600", textAlign: "center" },
+  mapFooter: {
+    padding: 12,
+    backgroundColor: "#111116",
+    borderTopWidth: 1,
+    borderTopColor: "#22222E",
+  },
   legend: { flexDirection: "row", alignItems: "center", gap: 8 },
   legendIndicator: { width: 10, height: 10, borderRadius: 5 },
-  legendText: { color: "#CCCCDD", fontSize: 11 },
+  legendText: { color: "#888899", fontSize: 11 },
+
   communityBanner: {
-    marginHorizontal: 16,
-    marginTop: 18,
-    backgroundColor: "#141419",
-    borderWidth: 1,
-    borderColor: "#00D4FF44",
-    borderRadius: 14,
+    backgroundColor: "#12242A",
+    borderRadius: 16,
     padding: 16,
     flexDirection: "row",
     alignItems: "center",
-    gap: 12,
-  },
-  communityBannerTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold" },
-  communityBannerSub: { color: "#888899", fontSize: 11, marginTop: 3 },
-  communityBannerBtn: {
-    backgroundColor: "#12242A",
     borderWidth: 1,
     borderColor: "#00D4FF",
-    paddingHorizontal: 10,
+    marginBottom: 16,
+  },
+  communityBannerTitle: { color: "#00D4FF", fontSize: 14, fontWeight: "bold", marginBottom: 2 },
+  communityBannerSub: { color: "#888899", fontSize: 11, lineHeight: 16 },
+  communityBannerBtn: {
+    backgroundColor: "#00D4FF",
+    paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
+    marginLeft: 10,
   },
-  communityBannerBtnText: { color: "#00D4FF", fontSize: 11, fontWeight: "bold" },
-  summaryRow: { flexDirection: "row", marginHorizontal: 16, gap: 10 },
+  communityBannerBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 11 },
+
+  summaryRow: { flexDirection: "row", gap: 10, marginBottom: 20 },
   summaryCard: {
     flex: 1,
     backgroundColor: "#141419",
-    borderRadius: 12,
+    borderRadius: 14,
     padding: 14,
+    alignItems: "center",
     borderWidth: 1,
     borderColor: "#22222E",
-    alignItems: "center",
   },
-  summaryNumber: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
-  summaryLabel: { fontSize: 10, color: "#888899", marginTop: 4 },
-  eventCard: {
+  summaryNumber: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF", marginBottom: 4 },
+  summaryLabel: { color: "#888899", fontSize: 10 },
+
+  profileHeader: { alignItems: "center", paddingVertical: 10, marginBottom: 16 },
+  profileHeaderTitle: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF", marginBottom: 14, alignSelf: "flex-start" },
+  largeAvatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#122A1A",
+    borderWidth: 2,
+    borderColor: "#00FF66",
+    justifyContent: "center",
+    alignItems: "center",
     marginBottom: 10,
+  },
+  largeAvatarText: { color: "#00FF66", fontSize: 32, fontWeight: "bold" },
+  profileName: { fontSize: 18, fontWeight: "bold", color: "#FFFFFF" },
+  profileEmail: { color: "#888899", fontSize: 12, marginTop: 2 },
+
+  profileSection: {
+    backgroundColor: "#141419",
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: "#22222E",
+  },
+  accessibilityCard: {
+    flexDirection: "row",
+    alignItems: "center",
     backgroundColor: "#1C1C26",
     borderRadius: 12,
     padding: 14,
+    marginTop: 10,
     borderWidth: 1,
     borderColor: "#2E2E3E",
-    flexDirection: "row",
     gap: 12,
   },
-  eventIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: "#2A121A",
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  eventContent: { flex: 1 },
-  eventTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center" },
-  eventTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold", flex: 1 },
-  eventPriority: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 6, borderWidth: 1, borderColor: "#FF0055" },
-  eventPriorityText: { fontSize: 8, fontWeight: "bold" },
-  eventDescription: { color: "#9999AA", fontSize: 11, marginTop: 3 },
-  eventAddress: { color: "#777788", fontSize: 10, marginTop: 5 },
-  eventTime: { color: "#555566", fontSize: 9, marginTop: 3 },
-  notifSectionLabel: { color: "#00D4FF", fontSize: 11, fontWeight: "bold", marginBottom: 8, marginTop: 4 },
-  profileHeader: { alignItems: "center", paddingVertical: 24, backgroundColor: "#141419", borderBottomWidth: 1, borderBottomColor: "#22222E" },
-  profileHeaderTitle: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold", marginBottom: 16 },
-  largeAvatar: { width: 74, height: 74, borderRadius: 37, backgroundColor: "#2A121A", borderWidth: 2, borderColor: "#FF0055", alignItems: "center", justifyContent: "center", marginBottom: 10 },
-  largeAvatarText: { color: "#FF0055", fontSize: 28, fontWeight: "bold" },
-  profileName: { color: "#FFFFFF", fontSize: 18, fontWeight: "bold" },
-  profileEmail: { color: "#888899", fontSize: 12, marginTop: 3 },
-  profileSection: { padding: 16 },
-  accessibilityCard: { flexDirection: "row", alignItems: "center", backgroundColor: "#141419", padding: 14, borderRadius: 12, borderWidth: 1, borderColor: "#22222E", marginBottom: 10, gap: 12 },
-  accessibilitySelected: { borderColor: "#00FF66", backgroundColor: "#122A1A" },
+  accessibilitySelected: { borderColor: "#00FF66", backgroundColor: "#122A1A22" },
   accessibilityEmoji: { fontSize: 24 },
   accessibilityTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "bold" },
   accessibilitySubtitle: { color: "#888899", fontSize: 11, marginTop: 2 },
-  check: { color: "#00FF66", fontSize: 16, fontWeight: "bold" },
-  logoutFullBtn: { backgroundColor: "#2A121A", padding: 14, borderRadius: 12, alignItems: "center", marginTop: 20, borderWidth: 1, borderColor: "#FF0055" },
+  check: { fontSize: 16, color: "#00FF66", fontWeight: "bold" },
+
+  logoutFullBtn: {
+    backgroundColor: "#2A121A",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 20,
+    borderWidth: 1,
+    borderColor: "#FF0055",
+  },
   logoutFullBtnText: { color: "#FF0055", fontWeight: "bold", fontSize: 13 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.8)", justifyContent: "flex-end" },
-  modalCard: { backgroundColor: "#141419", borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, borderWidth: 1, borderColor: "#22222E" },
-  modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 15 },
-  modalTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold" },
-  modalClose: { color: "#888899", fontSize: 18, fontWeight: "bold" },
-  modalLabel: { color: "#888899", fontSize: 10, fontWeight: "bold", marginBottom: 6, marginTop: 10 },
-  reportTypesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
-  typeChip: { backgroundColor: "#1C1C26", paddingHorizontal: 10, paddingVertical: 8, borderRadius: 8, borderWidth: 1, borderColor: "#2E2E3E" },
+
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 480,
+    backgroundColor: "#141419",
+    borderRadius: 18,
+    padding: 20,
+    borderWidth: 1,
+    borderColor: "#333344",
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 16,
+  },
+  modalTitle: { color: "#FFFFFF", fontSize: 17, fontWeight: "bold" },
+  modalClose: { color: "#888899", fontSize: 18, fontWeight: "bold", padding: 4 },
+  notifSectionLabel: { color: "#00D4FF", fontSize: 11, fontWeight: "bold", marginTop: 10, marginBottom: 8 },
+
+  eventCard: {
+    flexDirection: "row",
+    backgroundColor: "#1C1C26",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+    gap: 12,
+  },
+  eventIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    backgroundColor: "#2A121A",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  eventContent: { flex: 1 },
+  eventTitleRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 4 },
+  eventTitle: { color: "#FFFFFF", fontSize: 13, fontWeight: "bold" },
+  eventPriority: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 4 },
+  eventPriorityText: { fontSize: 9, fontWeight: "bold" },
+  eventDescription: { color: "#CCCCDD", fontSize: 11, lineHeight: 16, marginBottom: 4 },
+  eventAddress: { color: "#888899", fontSize: 10, marginBottom: 2 },
+  eventTime: { color: "#666677", fontSize: 9 },
+
+  modalLabel: { color: "#888899", fontSize: 10, fontWeight: "bold", marginTop: 12, marginBottom: 6 },
+  reportTypesGrid: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 6 },
+  typeChip: {
+    backgroundColor: "#1C1C26",
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+  },
   typeChipActive: { backgroundColor: "#12242A", borderColor: "#00D4FF" },
-  typeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "bold" },
-  modalInput: { backgroundColor: "#1C1C26", borderWidth: 1, borderColor: "#2E2E3E", borderRadius: 10, padding: 12, color: "#FFFFFF", fontSize: 13 },
-  lgpdText: { color: "#777788", fontSize: 10, marginTop: 12, lineHeight: 14 },
-  modalSubmitBtn: { backgroundColor: "#00D4FF", padding: 14, borderRadius: 10, alignItems: "center", marginTop: 16 },
-  modalSubmitText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 13 },
-  bottomBar: { height: 60, backgroundColor: "#141419", borderTopWidth: 1, borderTopColor: "#22222E", flexDirection: "row" },
-  tabButton: { flex: 1, justifyContent: "center", alignItems: "center" },
-  tabIcon: { fontSize: 20, color: "#666677" },
-  tabText: { fontSize: 10, color: "#666677", marginTop: 2 },
-  activeTab: { color: "#FF0055", fontWeight: "bold" },
+  typeChipText: { color: "#FFFFFF", fontSize: 11, fontWeight: "600" },
+  modalInput: {
+    backgroundColor: "#1C1C26",
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+    borderRadius: 10,
+    padding: 12,
+    color: "#FFFFFF",
+    fontSize: 13,
+  },
+  lgpdText: { color: "#777788", fontSize: 11, marginTop: 12, lineHeight: 16 },
+  modalSubmitBtn: {
+    backgroundColor: "#00D4FF",
+    padding: 14,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 16,
+  },
+  modalSubmitText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 14 },
+
+  bottomBarWrapper: {
+    backgroundColor: "#141419",
+    borderTopWidth: 1,
+    borderTopColor: "#22222E",
+    width: "100%",
+    alignItems: "center",
+  },
+  bottomBar: {
+    width: "100%",
+    maxWidth: 600,
+    height: 64,
+    flexDirection: "row",
+  },
+  tabBtn: { flex: 1, justifyContent: "center", alignItems: "center" },
+  tabIcon: { fontSize: 18, color: "#666677" },
+  tabText: { fontSize: 10, color: "#666677", marginTop: 3 },
+  tabActive: { color: "#00FF66", fontWeight: "bold" },
 });

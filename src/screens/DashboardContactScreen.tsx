@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   Text,
@@ -8,8 +8,13 @@ import {
   Alert,
   Modal,
   TextInput,
+  ActivityIndicator,
+  Platform,
+  Dimensions,
 } from "react-native";
 import Svg, { Path, Circle, Line, Rect } from "react-native-svg";
+import { listarContatosEmergencia } from "../services/contatoEmergenciaService";
+import { listarUsuarios } from "../services/usuarioService";
 
 interface DashboardContactProps {
   userData?: any;
@@ -21,6 +26,10 @@ type AbaContato = "MONITORAR" | "ALERTAS" | "PERFIL";
 export function DashboardContactScreen({ userData, onLogout }: DashboardContactProps) {
   const [aba, setAba] = useState<AbaContato>("MONITORAR");
   const [alertaSonoroCritico, setAlertaSonoroCritico] = useState(true);
+  
+  // Nome do PCD dinâmico
+  const [nomePcd, setNomePcd] = useState<string>("");
+  const [carregandoPcd, setCarregandoPcd] = useState<boolean>(true);
 
   // Modal de Reportar Risco
   const [modalReportVisible, setModalReportVisible] = useState(false);
@@ -29,43 +38,79 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
   const [descReport, setDescReport] = useState("");
 
   const nomeContato = userData?.nome || "Mariana (Rede de Apoio)";
-  const nomePcd = userData?.pcdVinculado || "Vanessa";
+  const telefoneLogado = userData?.telefone;
+  const usuarioIdLogado = userData?.id;
 
-  const [historicoAlertas, setHistoricoAlertas] = useState([
+  // Lógica de busca do PCD vinculado
+  useEffect(() => {
+    async function resolverNomePcd() {
+      try {
+        setCarregandoPcd(true);
+        const [listaContatos, listaUsuarios] = await Promise.all([
+          listarContatosEmergencia(),
+          listarUsuarios(),
+        ]);
+
+        let pcdIdEncontrado = null;
+
+        if (telefoneLogado) {
+          const contatoPorTelefone = listaContatos.find(
+            (c: any) => c.telefone?.trim() === telefoneLogado.trim()
+          );
+          if (contatoPorTelefone) {
+            pcdIdEncontrado = contatoPorTelefone.pcd_id || contatoPorTelefone.pcdId;
+          }
+        }
+
+        if (!pcdIdEncontrado && usuarioIdLogado) {
+          const contatoPorId = listaContatos.find(
+            (c: any) => Number(c.usuario_id || c.usuarioId) === Number(usuarioIdLogado)
+          );
+          if (contatoPorId) {
+            pcdIdEncontrado = contatoPorId.pcd_id || contatoPorId.pcdId;
+          }
+        }
+
+        if (pcdIdEncontrado) {
+          const usuarioPcd = listaUsuarios.find(
+            (u: any) => Number(u.id) === Number(pcdIdEncontrado)
+          );
+          if (usuarioPcd && usuarioPcd.nome) {
+            setNomePcd(usuarioPcd.nome);
+          } else {
+            setNomePcd("");
+          }
+        } else {
+          setNomePcd("");
+        }
+      } catch (error) {
+        console.error("Erro ao resolver nome do PCD:", error);
+        setNomePcd("");
+      } finally {
+        setCarregandoPcd(false);
+      }
+    }
+
+    resolverNomePcd();
+  }, [telefoneLogado, usuarioIdLogado]);
+
+  // Histórico de alertas
+  const historicoAlertas = [
     {
       id: 1,
       tipo: "URGENTE",
       titulo: "Desvio Proativo de Rota Ativado",
-      desc: `Alagamento detectado a 300m de ${nomePcd}. O sistema recalculou uma rota segura sem degraus.`,
+      desc: `Alagamento detectado próximo ao trajeto monitorado. O sistema recalculou uma rota segura sem degraus.`,
       hora: "Agora mesmo",
     },
     {
       id: 2,
       tipo: "ATENCAO",
       titulo: "Alerta Climático na Região",
-      desc: "Chuva forte prevista para a região da Av. Paulista nos próximos 15 minutos.",
+      desc: "Chuva forte prevista para os próximos 15 minutos.",
       hora: "Há 12 min",
     },
-    {
-      id: 3,
-      tipo: "SEGURO",
-      titulo: "Check-in Confirmado",
-      desc: `${nomePcd} respondeu ao aviso preventivo e informou que está em local seguro.`,
-      hora: "Há 35 min",
-    },
-  ]);
-
-  function solicitarCheckIn() {
-    const novoAviso = {
-      id: Date.now(),
-      tipo: "ATENCAO",
-      titulo: "Solicitação de Check-in Enviada",
-      desc: `Aguardando confirmação de ${nomePcd} (tempo limite: 3 minutos).`,
-      hora: "Agora",
-    };
-    setHistoricoAlertas([novoAviso, ...historicoAlertas]);
-    Alert.alert("✅ Check-in Solicitado", `O celular de ${nomePcd} recebeu um alerta vibratório/sonoro.`);
-  }
+  ];
 
   function enviarReporteRedeApoio() {
     if (!localReport.trim()) {
@@ -73,194 +118,191 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
       return;
     }
 
-    const novoAviso = {
-      id: Date.now(),
-      tipo: "ATENCAO",
-      titulo: `Risco Reportado: ${tipoRiscoReport}`,
-      desc: `Local: ${localReport.trim()} • ${descReport.trim() || "Reportado pela Rede de Apoio (Confiança inicial: 40%)."}`,
-      hora: "Agora mesmo",
-    };
-
-    setHistoricoAlertas([novoAviso, ...historicoAlertas]);
     setLocalReport("");
     setDescReport("");
     setModalReportVisible(false);
     Alert.alert(
       "📢 Risco Reportado!",
-      `O alerta foi registrado no sistema (Confiança inicial: 40%) e enviado para alertar ${nomePcd} e a Defesa Civil.`
+      `O alerta foi registrado no sistema (Confiança inicial: 40%) e enviado para a Defesa Civil.`
     );
   }
 
   return (
     <View style={styles.container}>
       {/* CABEÇALHO */}
-      <View style={styles.header}>
-        <View>
-          <Text style={styles.logo}>🤝 Rede de Apoio</Text>
-          <Text style={styles.subtitle}>Monitorando: {nomePcd}</Text>
-        </View>
+      <View style={styles.headerWrapper}>
+        <View style={styles.header}>
+          <View>
+            <Text style={styles.logo}>🤝 Rede de Apoio</Text>
+            <View style={{ flexDirection: "row", alignItems: "center", gap: 6, marginTop: 4 }}>
+              <Text style={styles.subtitle}>Monitorando dispositivo:</Text>
+              {carregandoPcd ? (
+                <ActivityIndicator size="small" color="#00FF66" />
+              ) : (
+                <Text style={[styles.subtitle, { color: "#00FF66", fontWeight: "bold" }]}>
+                  {nomePcd || "Nenhum vínculo ativo"}
+                </Text>
+              )}
+            </View>
+          </View>
 
-        <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-          <TouchableOpacity
-            style={styles.reportHeaderBtn}
-            onPress={() => setModalReportVisible(true)}
-          >
-            <Text style={styles.reportHeaderText}>+ Reportar Risco</Text>
-          </TouchableOpacity>
+          <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <TouchableOpacity
+              style={styles.reportHeaderBtn}
+              onPress={() => setModalReportVisible(true)}
+            >
+              <Text style={styles.reportHeaderText}>+ Reportar Risco</Text>
+            </TouchableOpacity>
 
-          <View style={styles.statusBadge}>
-            <Text style={styles.statusText}>● ATENÇÃO</Text>
+            <View style={styles.statusBadge}>
+              <Text style={styles.statusText}>● ATENÇÃO</Text>
+            </View>
           </View>
         </View>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
-        {/* ABA 1: MONITORAMENTO E MAPA */}
-        {aba === "MONITORAR" && (
-          <>
-            {/* Mapa Vetorial de Aproximação */}
-            <View style={styles.mapCard}>
-              <View style={styles.rowBetween}>
-                <Text style={styles.cardTitle}>📍 Localização em Tempo Real</Text>
-                <Text style={styles.distanceTag}>1,4 km de você</Text>
-              </View>
-
-              <View style={styles.mapBox}>
-                <Svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
-                  <Rect x="0" y="0" width="400" height="180" fill="#13131A" />
-                  <Rect x="25" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
-                  <Rect x="150" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
-                  <Rect x="275" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
-                  <Rect x="25" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
-                  <Rect x="150" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
-                  <Rect x="275" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
-
-                  <Line x1="0" y1="90" x2="400" y2="90" stroke="#252533" strokeWidth="14" />
-                  <Line x1="138" y1="0" x2="138" y2="180" stroke="#252533" strokeWidth="12" />
-                  <Line x1="262" y1="0" x2="262" y2="180" stroke="#252533" strokeWidth="12" />
-
-                  <Path
-                    d="M 320 135 L 262 135 L 262 90 L 138 90 L 138 50 L 85 50"
-                    stroke="#00FF66"
-                    strokeWidth="3.5"
-                    strokeDasharray="6,4"
-                    fill="none"
-                  />
-                  <Circle cx="200" cy="90" r="20" fill="rgba(255, 0, 85, 0.2)" stroke="#FF0055" strokeWidth="1.5" />
-                </Svg>
-
-                <View style={[styles.pin, { left: "21%", top: "28%", backgroundColor: "#00D4FF" }]}>
-                  <Text style={styles.pinText}>♿</Text>
-                </View>
-                <View style={[styles.pin, { left: "80%", top: "75%", backgroundColor: "#00FF66" }]}>
-                  <Text style={styles.pinText}>🤝</Text>
-                </View>
-              </View>
-            </View>
-
-            {/* Ficha de Telemetria do Usuário */}
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>Status do Dispositivo ({nomePcd})</Text>
-              <Text style={styles.infoLine}>🧭 Rota Ativa: Retorno à Residência (Sem degraus)</Text>
-              <Text style={styles.infoLine}>🔋 Bateria: 78% • Sinal GPS: Forte</Text>
-              <Text style={styles.infoLine}>🕒 Último Check-in: Há 2 minutos</Text>
-
-              <View style={styles.actionsRow}>
-                <TouchableOpacity
-                  style={[styles.halfBtn, { backgroundColor: "#00D4FF" }]}
-                  onPress={() => Alert.alert("📞 Chamada", `Ligando para ${nomePcd}...`)}
-                >
-                  <Text style={styles.halfBtnDarkText}>📞 Ligar Agora</Text>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  style={[styles.halfBtn, { backgroundColor: "#00FF66" }]}
-                  onPress={solicitarCheckIn}
-                >
-                  <Text style={styles.halfBtnDarkText}>✅ Pedir Check-in</Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                style={styles.reportBlockBtn}
-                onPress={() => setModalReportVisible(true)}
-              >
-                <Text style={styles.reportBlockBtnText}>📢 Reportar Risco no Trajeto de {nomePcd}</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={styles.sosBtn}
-                onPress={() =>
-                  Alert.alert(
-                    "🚨 RESGATE ACIONADO",
-                    `Defesa Civil e Bombeiros (193) receberam as coordenadas exatas e a ficha de acessibilidade de ${nomePcd}!`
-                  )
-                }
-              >
-                <Text style={styles.sosText}>🚒 Acionar Resgate / Bombeiros (193)</Text>
-              </TouchableOpacity>
-            </View>
-          </>
-        )}
-
-        {/* ABA 2: HISTÓRICO DE ALERTAS */}
-        {aba === "ALERTAS" && (
-          <>
-            <Text style={styles.sectionTitle}>🔔 Histórico da Rede de Apoio ({historicoAlertas.length})</Text>
-            {historicoAlertas.map((item) => (
-              <View
-                key={item.id}
-                style={[
-                  styles.alertCard,
-                  item.tipo === "URGENTE" && { borderLeftColor: "#FF0055" },
-                  item.tipo === "ATENCAO" && { borderLeftColor: "#F59E0B" },
-                  item.tipo === "SEGURO" && { borderLeftColor: "#00FF66" },
-                ]}
-              >
+        <View style={styles.contentContainer}>
+          {/* ABA 1: MONITORAMENTO E MAPA */}
+          {aba === "MONITORAR" && (
+            <View style={styles.monitorGrid}>
+              {/* Mapa Vetorial de Aproximação */}
+              <View style={styles.mapCard}>
                 <View style={styles.rowBetween}>
-                  <Text style={styles.alertTag}>{item.tipo}</Text>
-                  <Text style={styles.alertTime}>{item.hora}</Text>
+                  <Text style={styles.cardTitle}>📍 Localização em Tempo Real</Text>
+                  <Text style={styles.distanceTag}>1,4 km de você</Text>
                 </View>
-                <Text style={styles.alertTitle}>{item.titulo}</Text>
-                <Text style={styles.alertDesc}>{item.desc}</Text>
+
+                <View style={styles.mapBox}>
+                  <Svg width="100%" height="100%" viewBox="0 0 400 180" preserveAspectRatio="none">
+                    <Rect x="0" y="0" width="400" height="180" fill="#13131A" />
+                    <Rect x="25" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
+                    <Rect x="150" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
+                    <Rect x="275" y="20" width="100" height="55" rx="8" fill="#1C1C26" />
+                    <Rect x="25" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+                    <Rect x="150" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+                    <Rect x="275" y="105" width="100" height="55" rx="8" fill="#1C1C26" />
+
+                    <Line x1="0" y1="90" x2="400" y2="90" stroke="#252533" strokeWidth="14" />
+                    <Line x1="138" y1="0" x2="138" y2="180" stroke="#252533" strokeWidth="12" />
+                    <Line x1="262" y1="0" x2="262" y2="180" stroke="#252533" strokeWidth="12" />
+
+                    <Path
+                      d="M 320 135 L 262 135 L 262 90 L 138 90 L 138 50 L 85 50"
+                      stroke="#00FF66"
+                      strokeWidth="3.5"
+                      strokeDasharray="6,4"
+                      fill="none"
+                    />
+                    <Circle cx="200" cy="90" r="20" fill="rgba(255, 0, 85, 0.2)" stroke="#FF0055" strokeWidth="1.5" />
+                  </Svg>
+
+                  <View style={[styles.pin, { left: "21%", top: "28%", backgroundColor: "#00D4FF" }]}>
+                    <Text style={styles.pinText}>♿</Text>
+                  </View>
+                  <View style={[styles.pin, { left: "80%", top: "75%", backgroundColor: "#00FF66" }]}>
+                    <Text style={styles.pinText}>🤝</Text>
+                  </View>
+                </View>
               </View>
-            ))}
-          </>
-        )}
 
-        {/* ABA 3: PERFIL DO CONTATO */}
-        {aba === "PERFIL" && (
-          <View style={styles.card}>
-            <View style={styles.profileCenter}>
-              <View style={styles.contactAvatar}>
-                <Text style={styles.contactAvatarText}>{nomeContato.charAt(0).toUpperCase()}</Text>
+              {/* Ficha de Telemetria do Usuário */}
+              <View style={styles.card}>
+                <View style={styles.rowBetween}>
+                  <Text style={styles.cardTitle}>Status do Dispositivo {nomePcd ? `(${nomePcd})` : ""}</Text>
+                  {carregandoPcd && <ActivityIndicator size="small" color="#00FF66" />}
+                </View>
+                <Text style={styles.infoLine}>🧭 Rota Ativa: Retorno à Residência (Sem degraus)</Text>
+                <Text style={styles.infoLine}>🔋 Bateria: 78% • Sinal GPS: Forte</Text>
+
+                <TouchableOpacity
+                  style={styles.fullCallBtn}
+                  onPress={() => Alert.alert("📞 Chamada", `Ligando para o dispositivo monitorado...`)}
+                >
+                  <Text style={styles.fullCallBtnText}>📞 Ligar para o Dispositivo</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.reportBlockBtn}
+                  onPress={() => setModalReportVisible(true)}
+                >
+                  <Text style={styles.reportBlockBtnText}>📢 Reportar Risco no Trajeto</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  style={styles.sosBtn}
+                  onPress={() =>
+                    Alert.alert(
+                      "🚨 RESGATE ACIONADO",
+                      `Defesa Civil e Bombeiros (193) receberam as coordenadas exatas e a ficha de acessibilidade!`
+                    )
+                  }
+                >
+                  <Text style={styles.sosText}>🚒 Acionar Resgate / Bombeiros (193)</Text>
+                </TouchableOpacity>
               </View>
-              <Text style={styles.profileName}>{nomeContato}</Text>
-              <Text style={styles.profileSub}>Contato de Emergência Prioritário</Text>
             </View>
+          )}
 
-            <View style={styles.infoBox}>
-              <Text style={styles.infoLine}>♿ Usuário Vinculado: {nomePcd}</Text>
-              <Text style={styles.infoLine}>📧 E-mail: {userData?.email || "apoio@urbanrisk.com"}</Text>
-              <Text style={styles.infoLine}>📱 Telefone: {userData?.telefone || "(11) 99999-8888"}</Text>
+          {/* ABA 2: HISTÓRICO DE ALERTAS */}
+          {aba === "ALERTAS" && (
+            <View style={{ width: "100%" }}>
+              <Text style={styles.sectionTitle}>🔔 Histórico da Rede de Apoio ({historicoAlertas.length})</Text>
+              {historicoAlertas.map((item) => (
+                <View
+                  key={item.id}
+                  style={[
+                    styles.alertCard,
+                    item.tipo === "URGENTE" && { borderLeftColor: "#FF0055" },
+                    item.tipo === "ATENCAO" && { borderLeftColor: "#F59E0B" },
+                    item.tipo === "SEGURO" && { borderLeftColor: "#00FF66" },
+                  ]}
+                >
+                  <View style={styles.rowBetween}>
+                    <Text style={styles.alertTag}>{item.tipo}</Text>
+                    <Text style={styles.alertTime}>{item.hora}</Text>
+                  </View>
+                  <Text style={styles.alertTitle}>{item.titulo}</Text>
+                  <Text style={styles.alertDesc}>{item.desc}</Text>
+                </View>
+              ))}
             </View>
+          )}
 
-            <TouchableOpacity
-              style={styles.toggleBtn}
-              onPress={() => setAlertaSonoroCritico(!alertaSonoroCritico)}
-            >
-              <Text style={styles.toggleBtnText}>
-                {alertaSonoroCritico
-                  ? "🔊 Alerta Sonoro Crítico: ATIVADO"
-                  : "🔇 Alerta Sonoro Crítico: DESATIVADO"}
-              </Text>
-            </TouchableOpacity>
+          {/* ABA 3: PERFIL DO CONTATO */}
+          {aba === "PERFIL" && (
+            <View style={[styles.card, { width: "100%", maxWidth: 500, alignSelf: "center" }]}>
+              <View style={styles.profileCenter}>
+                <View style={styles.contactAvatar}>
+                  <Text style={styles.contactAvatarText}>{nomeContato.charAt(0).toUpperCase()}</Text>
+                </View>
+                <Text style={styles.profileName}>{nomeContato}</Text>
+                <Text style={styles.profileSub}>Contato de Emergência Prioritário</Text>
+              </View>
 
-            <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
-              <Text style={styles.logoutFullText}>Sair da Conta</Text>
-            </TouchableOpacity>
-          </View>
-        )}
+              <View style={styles.infoBox}>
+                <Text style={styles.infoLine}>♿ Usuário Vinculado: {nomePcd || "Nenhum"}</Text>
+                <Text style={styles.infoLine}>📧 E-mail: {userData?.email || "apoio@urbanrisk.com"}</Text>
+                <Text style={styles.infoLine}>📱 Telefone: {userData?.telefone || "(11) 99999-8888"}</Text>
+              </View>
+
+              <TouchableOpacity
+                style={styles.toggleBtn}
+                onPress={() => setAlertaSonoroCritico(!alertaSonoroCritico)}
+              >
+                <Text style={styles.toggleBtnText}>
+                  {alertaSonoroCritico
+                    ? "🔊 Alerta Sonoro Crítico: ATIVADO"
+                    : "🔇 Alerta Sonoro Crítico: DESATIVADO"}
+                </Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
+                <Text style={styles.logoutFullText}>Sair da Conta</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+        </View>
       </ScrollView>
 
       {/* MODAL DE REPORTAR RISCO */}
@@ -319,7 +361,7 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
             />
 
             <Text style={styles.lgpdText}>
-              🔒 Seu relato será enviado para {nomePcd} e para a fila de validação da Defesa Civil (40% de confiança inicial).
+              🔒 Seu relato será enviado para a fila de validação da Defesa Civil (40% de confiança inicial).
             </Text>
 
             <TouchableOpacity style={styles.modalSubmitBtn} onPress={enviarReporteRedeApoio}>
@@ -329,22 +371,24 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
         </View>
       </Modal>
 
-      {/* MENU INFERIOR */}
-      <View style={styles.bottomBar}>
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("MONITORAR")}>
-          <Text style={[styles.tabIcon, aba === "MONITORAR" && styles.tabActive]}>📍</Text>
-          <Text style={[styles.tabText, aba === "MONITORAR" && styles.tabActive]}>Monitorar</Text>
-        </TouchableOpacity>
+      {/* MENU INFERIOR RESPONSIVO */}
+      <View style={styles.bottomBarWrapper}>
+        <View style={styles.bottomBar}>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("MONITORAR")}>
+            <Text style={[styles.tabIcon, aba === "MONITORAR" && styles.tabActive]}>📍</Text>
+            <Text style={[styles.tabText, aba === "MONITORAR" && styles.tabActive]}>Monitorar</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("ALERTAS")}>
-          <Text style={[styles.tabIcon, aba === "ALERTAS" && styles.tabActive]}>🔔</Text>
-          <Text style={[styles.tabText, aba === "ALERTAS" && styles.tabActive]}>Alertas</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("ALERTAS")}>
+            <Text style={[styles.tabIcon, aba === "ALERTAS" && styles.tabActive]}>🔔</Text>
+            <Text style={[styles.tabText, aba === "ALERTAS" && styles.tabActive]}>Alertas</Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("PERFIL")}>
-          <Text style={[styles.tabIcon, aba === "PERFIL" && styles.tabActive]}>👤</Text>
-          <Text style={[styles.tabText, aba === "PERFIL" && styles.tabActive]}>Perfil</Text>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.tabBtn} onPress={() => setAba("PERFIL")}>
+            <Text style={[styles.tabIcon, aba === "PERFIL" && styles.tabActive]}>👤</Text>
+            <Text style={[styles.tabText, aba === "PERFIL" && styles.tabActive]}>Perfil</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     </View>
   );
@@ -352,51 +396,72 @@ export function DashboardContactScreen({ userData, onLogout }: DashboardContactP
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0B0B0E" },
-  header: {
+  
+  headerWrapper: {
     backgroundColor: "#141419",
-    paddingHorizontal: 18,
+    borderBottomWidth: 1,
+    borderBottomColor: "#22222E",
+    width: "100%",
+    alignItems: "center",
+  },
+  header: {
+    width: "100%",
+    maxWidth: 1000,
+    paddingHorizontal: 20,
     paddingTop: 18,
     paddingBottom: 16,
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    borderBottomWidth: 1,
-    borderBottomColor: "#22222E",
   },
   logo: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
   subtitle: { color: "#888899", fontSize: 12, marginTop: 4 },
+  
   reportHeaderBtn: {
     backgroundColor: "#12242A",
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#00D4FF",
   },
-  reportHeaderText: { color: "#00D4FF", fontSize: 10, fontWeight: "bold" },
+  reportHeaderText: { color: "#00D4FF", fontSize: 11, fontWeight: "bold" },
   statusBadge: {
     backgroundColor: "#2A1F12",
-    paddingHorizontal: 8,
-    paddingVertical: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: "#F59E0B",
   },
-  statusText: { color: "#FBBF24", fontSize: 9, fontWeight: "bold" },
-  scrollContent: { padding: 16, paddingBottom: 24 },
+  statusText: { color: "#FBBF24", fontSize: 10, fontWeight: "bold" },
+
+  scrollContent: { padding: 16, paddingBottom: 40, alignItems: "center" },
+  contentContainer: {
+    width: "100%",
+    maxWidth: 1000,
+  },
+
+  monitorGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+  },
+
   mapCard: {
+    flex: 1,
+    minWidth: 300,
     backgroundColor: "#141419",
     borderRadius: 16,
-    padding: 14,
+    padding: 16,
     borderWidth: 1,
     borderColor: "#22222E",
-    marginBottom: 16,
   },
-  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
+  rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 12 },
   cardTitle: { fontSize: 15, fontWeight: "bold", color: "#FFFFFF" },
   distanceTag: { color: "#00FF66", fontSize: 11, fontWeight: "bold" },
   mapBox: {
-    height: 180,
+    height: 220,
     borderRadius: 12,
     overflow: "hidden",
     position: "relative",
@@ -415,18 +480,25 @@ const styles = StyleSheet.create({
     transform: [{ translateX: -14 }, { translateY: -14 }],
   },
   pinText: { fontSize: 13 },
+
   card: {
+    flex: 1,
+    minWidth: 300,
     backgroundColor: "#141419",
     borderRadius: 16,
-    padding: 16,
+    padding: 18,
     borderWidth: 1,
     borderColor: "#22222E",
-    marginBottom: 16,
   },
   infoLine: { color: "#CCCCDD", fontSize: 13, marginBottom: 8 },
-  actionsRow: { flexDirection: "row", gap: 10, marginTop: 10 },
-  halfBtn: { flex: 1, padding: 13, borderRadius: 10, alignItems: "center" },
-  halfBtnDarkText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 12 },
+  fullCallBtn: {
+    backgroundColor: "#00D4FF",
+    padding: 13,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 12,
+  },
+  fullCallBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 13 },
   reportBlockBtn: {
     backgroundColor: "#12242A",
     padding: 13,
@@ -445,6 +517,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
   sosText: { color: "#FFFFFF", fontWeight: "bold", fontSize: 13 },
+
   sectionTitle: { color: "#FFFFFF", fontSize: 16, fontWeight: "bold", marginBottom: 12 },
   alertCard: {
     backgroundColor: "#141419",
@@ -458,6 +531,7 @@ const styles = StyleSheet.create({
   alertTime: { color: "#666677", fontSize: 10 },
   alertTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "bold", marginBottom: 4 },
   alertDesc: { color: "#888899", fontSize: 12, lineHeight: 18 },
+
   profileCenter: { alignItems: "center", marginBottom: 16 },
   contactAvatar: {
     width: 72,
@@ -493,6 +567,7 @@ const styles = StyleSheet.create({
     borderColor: "#FF0055",
   },
   logoutFullText: { color: "#FF0055", fontWeight: "bold", fontSize: 13 },
+
   modalOverlay: {
     flex: 1,
     backgroundColor: "rgba(0, 0, 0, 0.8)",
@@ -502,7 +577,7 @@ const styles = StyleSheet.create({
   },
   modalCard: {
     width: "100%",
-    maxWidth: 440,
+    maxWidth: 480,
     backgroundColor: "#141419",
     borderRadius: 18,
     padding: 20,
@@ -547,11 +622,18 @@ const styles = StyleSheet.create({
     marginTop: 16,
   },
   modalSubmitText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 14 },
-  bottomBar: {
-    height: 64,
+
+  bottomBarWrapper: {
     backgroundColor: "#141419",
     borderTopWidth: 1,
     borderTopColor: "#22222E",
+    width: "100%",
+    alignItems: "center",
+  },
+  bottomBar: {
+    width: "100%",
+    maxWidth: 600,
+    height: 64,
     flexDirection: "row",
   },
   tabBtn: { flex: 1, justifyContent: "center", alignItems: "center" },
