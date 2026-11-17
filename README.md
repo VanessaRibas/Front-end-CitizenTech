@@ -1,4 +1,4 @@
-# 🛡️ CitizenTech — Urban Risk Intelligence Platform 
+# 🛡️ CitizenTech — SOS Rota
 
 Um projeto desenvolvido em **React Native (Expo + TypeScript)** focado em **mobilidade urbana inclusiva e proteção preventiva** para Pessoas com Deficiência (PCD) diante de eventos climáticos extremos e riscos urbanos (alagamentos, obstruções de calçadas/rampas, quedas de árvores e granizo).
 

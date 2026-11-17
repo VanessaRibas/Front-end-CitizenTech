@@ -22,6 +22,12 @@ type PerfilPCD = "VISUAL" | "CADEIRANTE";
 type AbaUsuario = "INICIO" | "PERFIL";
 type TipoRota = "CASA" | "ABRIGO" | "REDE" | "DESVIO";
 
+interface LocalApoio {
+  id: number;
+  nome: string;
+  endereco: string;
+}
+
 interface DashboardUserProps {
   userData?: any;
   onLogout: () => void;
@@ -119,6 +125,22 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   const [destino, setDestino] = useState("");
   const [rotaAtualizada, setRotaAtualizada] = useState(false);
 
+  // Locais Seguros de Apoio (Gerenciáveis na aba Meu Perfil)
+  const [locaisApoio, setLocaisApoio] = useState<LocalApoio[]>(
+    userData?.locaisSeguros?.length > 0
+      ? userData.locaisSeguros.map((l: any, idx: number) => ({
+          id: idx + 1,
+          nome: l.nome,
+          endereco: l.endereco,
+        }))
+      : [
+          { id: 1, nome: "Minha Casa", endereco: "Rua das Acácias, 450 - Bela Vista" },
+          { id: 2, nome: "Casa da Mãe (Apoio)", endereco: "Alameda Santos, 1120 - Jardim Paulista" },
+        ]
+  );
+  const [novoLocalNome, setNovoLocalNome] = useState("");
+  const [novoLocalEndereco, setNovoLocalEndereco] = useState("");
+
   // Estados de Integração Backend Spring Boot
   const [eventos, setEventos] = useState<EventoRisco[]>([]);
   const [alertas, setAlertas] = useState<any[]>([]);
@@ -195,6 +217,38 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
   function selecionarTipoRota(novaRota: TipoRota) {
     setTipoRota(novaRota);
     setRotaAtualizada(false);
+
+    if (novaRota === "CASA" && locaisApoio.length > 0) {
+      setDestino(locaisApoio[0].endereco);
+    } else if (novaRota === "REDE" && locaisApoio.length > 0) {
+      const localRede = locaisApoio[1] || locaisApoio[0];
+      setDestino(`${localRede.nome} (${localRede.endereco})`);
+    } else {
+      setDestino("");
+    }
+  }
+
+  function adicionarLocalApoio() {
+    if (!novoLocalNome.trim() || !novoLocalEndereco.trim()) {
+      Alert.alert("Campos obrigatórios", "Preencha o nome do local e o endereço completo.");
+      return;
+    }
+
+    const novo: LocalApoio = {
+      id: Date.now(),
+      nome: novoLocalNome.trim(),
+      endereco: novoLocalEndereco.trim(),
+    };
+
+    setLocaisApoio([...locaisApoio, novo]);
+    setNovoLocalNome("");
+    setNovoLocalEndereco("");
+    Alert.alert("✅ Local Salvo", `${novo.nome} foi adicionado aos seus locais seguros de apoio!`);
+  }
+
+  function removerLocalApoio(id: number, nome: string) {
+    setLocaisApoio(locaisApoio.filter((item) => item.id !== id));
+    Alert.alert("Local Removido", `${nome} foi removido da sua lista de locais de apoio.`);
   }
 
   async function acionarSOS() {
@@ -210,7 +264,8 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
         dataHora: new Date().toISOString(),
         titulo: "Alerta Extremo: Risco Imediato",
         regiao: "Região Central / Perímetro Atual",
-        descricao: "Defesa Civil: Alerta de emergência ativado para sua zona de circulação. Busque abrigo imediato.",
+        descricao:
+          "Defesa Civil: Alerta de emergência ativado para sua zona de circulação. Busque abrigo imediato.",
       };
 
       const salvo = await criarChamadoSOS(novoSos);
@@ -222,7 +277,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
       setMostrarAlertaExtremo(true);
 
       Alert.alert(
-        "🚨 SOS EMERGÊNCIA ENVIADO",
+        "🚨 SOS ROTA — EMERGÊNCIA ENVIADA",
         `Chamado SOS registrado com sucesso para o usuário ID ${pcdIdUsuario}. Sua localização e ficha de acessibilidade foram despachadas para a Defesa Civil!`
       );
     } catch (error) {
@@ -253,7 +308,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
     try {
       setCarregando(true);
       const eventoSalvo = await criarEvento(novoEventoPayload);
-      
+
       if (eventoSalvo) {
         setEventos([eventoSalvo, ...eventos]);
       } else {
@@ -265,7 +320,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
       setModalReportVisible(false);
       Alert.alert(
         "📢 Ocorrência Registrada!",
-        "Seu relato foi salvo no banco e publicado no mapa com nível de confiança inicial de 40% para auditoria da Defesa Civil."
+        "Seu relato foi salvo no banco e publicado no SOS Rota com nível de confiança inicial de 40% para auditoria da Defesa Civil."
       );
     } catch (error) {
       console.error("Erro ao salvar evento reportado:", error);
@@ -309,12 +364,18 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             </View>
 
             <Text style={styles.govAlertBodyText}>
-              Defesa Civil: {chamadoSosRecente.titulo || "EMERGÊNCIA ATIVA"} - {chamadoSosRecente.descricao || `Área afetada: ${chamadoSosRecente.regiao || "Sua região atual"}. Siga as rotas de segurança recomendadas e busque abrigo imediato.`}
+              Defesa Civil: {chamadoSosRecente.titulo || "EMERGÊNCIA ATIVA"} -{" "}
+              {chamadoSosRecente.descricao ||
+                `Área afetada: ${
+                  chamadoSosRecente.regiao || "Sua região atual"
+                }. Siga as rotas de segurança recomendadas e busque abrigo imediato.`}
             </Text>
 
             <View style={styles.govAlertFooterRow}>
               <Text style={styles.govAlertFooterTime}>
-                {chamadoSosRecente.dataHora ? new Date(chamadoSosRecente.dataHora.trim()).toLocaleTimeString() : "Agora"}
+                {chamadoSosRecente.dataHora
+                  ? new Date(chamadoSosRecente.dataHora.trim()).toLocaleTimeString()
+                  : "Agora"}
               </Text>
               <TouchableOpacity
                 style={styles.govAlertOkBtn}
@@ -333,8 +394,8 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             {/* CABEÇALHO COM O SINO DE NOTIFICAÇÃO */}
             <View style={styles.header}>
               <View>
-                <Text style={styles.logo}>CitizenTech</Text>
-                <Text style={styles.headerSubtitle}>Mobilidade inteligente para todos</Text>
+                <Text style={styles.logo}>CitizenTech — SOS Rota</Text>
+                <Text style={styles.headerSubtitle}>Mobilidade inteligente e inclusiva</Text>
               </View>
 
               <View style={styles.headerActions}>
@@ -357,10 +418,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                   <Text style={styles.reportHeaderText}>+ Reportar</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                  style={styles.sosHeaderBtn}
-                  onPress={acionarSOS}
-                >
+                <TouchableOpacity style={styles.sosHeaderBtn} onPress={acionarSOS}>
                   <Text style={styles.sosHeaderText}>SOS</Text>
                 </TouchableOpacity>
 
@@ -625,18 +683,19 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
           </View>
         </ScrollView>
       ) : (
-        /* TELA DE PERFIL */
+        /* TELA DE PERFIL (COM ACESSIBILIDADE + LOCAIS SEGUROS DE APOIO) */
         <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
           <View style={styles.contentWrapper}>
             <View style={styles.profileHeader}>
-              <Text style={styles.profileHeaderTitle}>Meu perfil</Text>
+              <Text style={styles.profileHeaderTitle}>Meu perfil • SOS Rota</Text>
               <View style={styles.largeAvatar}>
                 <Text style={styles.largeAvatarText}>{nomeUsuario.charAt(0).toUpperCase()}</Text>
               </View>
               <Text style={styles.profileName}>{nomeUsuario}</Text>
-              <Text style={styles.profileEmail}>{userData?.email || "Usuária CitizenTech"}</Text>
+              <Text style={styles.profileEmail}>{userData?.email || "Usuária CitizenTech — SOS Rota"}</Text>
             </View>
 
+            {/* BLOCO 1: PERFIL DE ACESSIBILIDADE */}
             <View style={styles.profileSection}>
               <Text style={styles.sectionTitle}>Perfil de acessibilidade</Text>
 
@@ -670,6 +729,50 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 </View>
                 <Text style={styles.check}>{perfil === "CADEIRANTE" ? "●" : "○"}</Text>
               </TouchableOpacity>
+            </View>
+
+            {/* BLOCO 2: ALTERAR / ADICIONAR LOCAIS SEGUROS DE APOIO */}
+            <View style={[styles.profileSection, { marginTop: 16 }]}>
+              <Text style={styles.sectionTitle}>📍 Meus Locais Seguros de Apoio</Text>
+              <Text style={styles.helperSubText}>
+                Gerencie os endereços utilizados como destino rápido nas rotas Casa e Rede de Apoio:
+              </Text>
+
+              {locaisApoio.map((loc) => (
+                <View key={loc.id} style={styles.savedLocationCard}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.savedLocationName}>{loc.nome}</Text>
+                    <Text style={styles.savedLocationAddress}>{loc.endereco}</Text>
+                  </View>
+                  <TouchableOpacity
+                    style={styles.deleteLocBtn}
+                    onPress={() => removerLocalApoio(loc.id, loc.nome)}
+                  >
+                    <Text style={styles.deleteLocText}>Excluir</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+
+              <View style={styles.addLocationBox}>
+                <Text style={styles.addLocationTitle}>+ Adicionar Novo Local de Apoio</Text>
+                <TextInput
+                  style={styles.profileInput}
+                  placeholder="Nome do local (ex: Casa da Mãe, UBS, Trabalho)"
+                  placeholderTextColor="#666677"
+                  value={novoLocalNome}
+                  onChangeText={setNovoLocalNome}
+                />
+                <TextInput
+                  style={styles.profileInput}
+                  placeholder="Endereço completo (Rua, Número, Bairro)"
+                  placeholderTextColor="#666677"
+                  value={novoLocalEndereco}
+                  onChangeText={setNovoLocalEndereco}
+                />
+                <TouchableOpacity style={styles.addLocationBtn} onPress={adicionarLocalApoio}>
+                  <Text style={styles.addLocationBtnText}>Salvar Local Seguro</Text>
+                </TouchableOpacity>
+              </View>
 
               <TouchableOpacity style={styles.logoutFullBtn} onPress={onLogout}>
                 <Text style={styles.logoutFullBtnText}>Sair da Conta</Text>
@@ -704,24 +807,35 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                 <>
                   {chamadoSosRecente && (
                     <>
-                      <Text style={[styles.notifSectionLabel, { color: "#FF0055" }]}>🚨 ÚLTIMO SOS / ALERTA EXTREMO</Text>
+                      <Text style={[styles.notifSectionLabel, { color: "#FF0055" }]}>
+                        🚨 ÚLTIMO SOS / ALERTA EXTREMO
+                      </Text>
                       <View style={[styles.eventCard, { borderColor: "#FF005544", backgroundColor: "#2A121A22" }]}>
                         <View style={styles.eventIcon}>
                           <Text style={{ fontSize: 21 }}>🚨</Text>
                         </View>
                         <View style={styles.eventContent}>
                           <View style={styles.eventTitleRow}>
-                            <Text style={styles.eventTitle}>{chamadoSosRecente.titulo || `Chamado #${chamadoSosRecente.id}`}</Text>
+                            <Text style={styles.eventTitle}>
+                              {chamadoSosRecente.titulo || `Chamado #${chamadoSosRecente.id}`}
+                            </Text>
                             <View style={[styles.eventPriority, { backgroundColor: "#2A121A" }]}>
                               <Text style={[styles.eventPriorityText, { color: "#FF0055" }]}>
                                 {chamadoSosRecente.nivelAcionamento || "CRÍTICO"}
                               </Text>
                             </View>
                           </View>
-                          <Text style={styles.eventDescription}>{chamadoSosRecente.descricao || "Alerta oficial gerado em tempo real."}</Text>
-                          <Text style={styles.eventAddress}>📍 Região: {chamadoSosRecente.regiao || "Perímetro Atual"}</Text>
+                          <Text style={styles.eventDescription}>
+                            {chamadoSosRecente.descricao || "Alerta oficial gerado em tempo real."}
+                          </Text>
+                          <Text style={styles.eventAddress}>
+                            📍 Região: {chamadoSosRecente.regiao || "Perímetro Atual"}
+                          </Text>
                           <Text style={styles.eventTime}>
-                            Status: {chamadoSosRecente.status || "PENDENTE"} • {chamadoSosRecente.dataHora ? new Date(chamadoSosRecente.dataHora).toLocaleString() : ""}
+                            Status: {chamadoSosRecente.status || "PENDENTE"} •{" "}
+                            {chamadoSosRecente.dataHora
+                              ? new Date(chamadoSosRecente.dataHora).toLocaleString()
+                              : ""}
                           </Text>
                         </View>
                       </View>
@@ -746,15 +860,21 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
                         <Text style={styles.eventDescription}>{evento.descricao}</Text>
                         <Text style={styles.eventAddress}>📍 {evento.endereco}</Text>
                         <Text style={styles.eventTime}>
-                          Origem: {evento.origem || evento.origemDado || "Comunidade"} • Confiança: {evento.confianca || evento.nivelConfianca || "40%"}
+                          Origem: {evento.origem || evento.origemDado || "Comunidade"} • Confiança:{" "}
+                          {evento.confianca || evento.nivelConfianca || "40%"}
                         </Text>
                       </View>
                     </View>
                   ))}
 
-                  {alertas.length > 0 && <Text style={[styles.notifSectionLabel, { marginTop: 15 }]}>🚨 ALERTAS OFICIAIS</Text>}
+                  {alertas.length > 0 && (
+                    <Text style={[styles.notifSectionLabel, { marginTop: 15 }]}>🚨 ALERTAS OFICIAIS</Text>
+                  )}
                   {alertas.map((alerta, index) => (
-                    <View key={`alerta-notif-${alerta.id || index}`} style={[styles.eventCard, { borderColor: "#00D4FF44" }]}>
+                    <View
+                      key={`alerta-notif-${alerta.id || index}`}
+                      style={[styles.eventCard, { borderColor: "#00D4FF44" }]}
+                    >
                       <View style={[styles.eventIcon, { backgroundColor: "#12242A" }]}>
                         <Text style={{ fontSize: 21 }}>{alerta.tipo || "🚨"}</Text>
                       </View>
@@ -797,10 +917,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
               ].map((item) => (
                 <TouchableOpacity
                   key={item}
-                  style={[
-                    styles.typeChip,
-                    tipoRiscoReport === item && styles.typeChipActive,
-                  ]}
+                  style={[styles.typeChip, tipoRiscoReport === item && styles.typeChipActive]}
                   onPress={() => setTipoRiscoReport(item)}
                 >
                   <Text style={styles.typeChipText}>{item}</Text>
@@ -827,7 +944,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
             />
 
             <Text style={styles.lgpdText}>
-              🔒 Seu relato será publicado com 40% de confiança inicial para validação e auditoria da Defesa Civil.
+              🔒 Seu relato será publicado no SOS Rota com 40% de confiança inicial para validação e auditoria da Defesa Civil.
             </Text>
 
             <TouchableOpacity style={styles.modalSubmitBtn} onPress={enviarReporteComunitario}>
@@ -857,7 +974,7 @@ export function DashboardUserScreen({ userData, onLogout }: DashboardUserProps) 
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: "#0B0B0E" },
-  
+
   contentWrapper: {
     width: "100%",
     maxWidth: 900,
@@ -923,8 +1040,8 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   headerActions: { flexDirection: "row", alignItems: "center", gap: 8 },
-  logo: { fontSize: 22, fontWeight: "bold", color: "#FFFFFF" },
-  headerSubtitle: { color: "#888899", fontSize: 12, marginTop: 2 },
+  logo: { fontSize: 20, fontWeight: "bold", color: "#FFFFFF" },
+  headerSubtitle: { color: "#00FF66", fontSize: 11, marginTop: 2, fontWeight: "600" },
 
   bellBtn: {
     position: "relative",
@@ -1173,6 +1290,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#22222E",
   },
+  helperSubText: { color: "#888899", fontSize: 11, marginTop: 4, marginBottom: 12, lineHeight: 16 },
   accessibilityCard: {
     flexDirection: "row",
     alignItems: "center",
@@ -1189,6 +1307,56 @@ const styles = StyleSheet.create({
   accessibilityTitle: { color: "#FFFFFF", fontSize: 14, fontWeight: "bold" },
   accessibilitySubtitle: { color: "#888899", fontSize: 11, marginTop: 2 },
   check: { fontSize: 16, color: "#00FF66", fontWeight: "bold" },
+
+  savedLocationCard: {
+    backgroundColor: "#1C1C26",
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+  },
+  savedLocationName: { color: "#FFFFFF", fontWeight: "bold", fontSize: 13 },
+  savedLocationAddress: { color: "#888899", fontSize: 11, marginTop: 2 },
+  deleteLocBtn: {
+    backgroundColor: "#2A121A",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "#FF0055",
+  },
+  deleteLocText: { color: "#FF0055", fontSize: 11, fontWeight: "bold" },
+  addLocationBox: {
+    backgroundColor: "#111116",
+    borderRadius: 12,
+    padding: 14,
+    marginTop: 6,
+    borderWidth: 1,
+    borderColor: "#00D4FF55",
+  },
+  addLocationTitle: { color: "#00D4FF", fontWeight: "bold", fontSize: 13, marginBottom: 10 },
+  profileInput: {
+    backgroundColor: "#1C1C26",
+    borderWidth: 1,
+    borderColor: "#2E2E3E",
+    borderRadius: 10,
+    padding: 11,
+    color: "#FFFFFF",
+    fontSize: 12,
+    marginBottom: 8,
+  },
+  addLocationBtn: {
+    backgroundColor: "#00FF66",
+    padding: 12,
+    borderRadius: 10,
+    alignItems: "center",
+    marginTop: 4,
+  },
+  addLocationBtnText: { color: "#0B0B0E", fontWeight: "bold", fontSize: 13 },
 
   logoutFullBtn: {
     backgroundColor: "#2A121A",
